@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "OhBet",
+    "slug": "ohbetappfinal",
+    "privacy": "unlisted",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/ohbet-icon-final.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/pit.jpeg",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "buildNumber": "65",
+      "supportsTablet": true,
+      "bundleIdentifier": "com.spl.ohbetappfinal",
+      "icon": "./assets/ohbet-icon-final.png",
+      "infoPlist": {
+        "CFBundleDisplayName": "OhBet"
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.spl.ohbetappfinal"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "72c1f9c2-2829-45e3-bac6-20bc0c2e992a"
+      }
+    }
+  }
+}

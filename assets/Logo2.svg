@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1019.9 1019.9">
+  <!-- Generator: Adobe Illustrator 29.3.1, SVG Export Plug-In . SVG Version: 2.1.0 Build 151)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #5fd8ff;
+      }
+
+      .st1 {
+        fill: #fff;
+        font-family: HelveticaNeue-UltraLight, 'Helvetica Neue';
+        font-size: 611.9px;
+        font-weight: 100;
+      }
+
+      .st1, .st2 {
+        isolation: isolate;
+      }
+
+      .st3 {
+        fill: none;
+        stroke: #fff;
+        stroke-miterlimit: 10;
+        stroke-width: 2px;
+      }
+    </style>
+  </defs>
+  <rect class="st0" width="1019.9" height="1019.9" rx="18" ry="18"/>
+  <g class="st2">
+    <text class="st1" transform="translate(34.4 552.4)"><tspan x="0" y="0">O</tspan></text>
+  </g>
+  <g class="st2">
+    <text class="st1" transform="translate(422.4 624.6)"><tspan x="0" y="0">,</tspan></text>
+  </g>
+  <g class="st2">
+    <text class="st1" transform="translate(624.4 953.6)"><tspan x="0" y="0">b</tspan></text>
+  </g>
+  <path class="st0" d="M616.1,361.1c-64.6,107.8-129.1,215.6-193.7,323.4"/>
+  <line class="st3" x1="54" y1="966.3" x2="962.6" y2="50.4"/>
+</svg>
