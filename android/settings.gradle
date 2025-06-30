@@ -1,4 +1,4 @@
-rootProject.name = 'ohbetappfinal'
+rootProject.name = 'OhBet'
 
 dependencyResolutionManagement {
   versionCatalogs {
