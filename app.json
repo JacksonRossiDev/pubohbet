@@ -7,7 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-   
     "updates": {
       "fallbackToCacheTimeout": 0
     },
@@ -15,10 +14,9 @@
       "**/*"
     ],
     "ios": {
-      "buildNumber": "68",
+      "buildNumber": "70",
       "supportsTablet": true,
       "bundleIdentifier": "com.spl.ohbetappfinal",
-      "icon": "./assets/ohbet-icon-final.png",
       "infoPlist": {
         "CFBundleDisplayName": "OhBet"
       },
