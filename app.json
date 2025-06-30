@@ -7,11 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/ohbet-icon-final.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/pit.jpeg",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
+   
     "updates": {
       "fallbackToCacheTimeout": 0
     },
@@ -19,7 +15,7 @@
       "**/*"
     ],
     "ios": {
-      "buildNumber": "65",
+      "buildNumber": "68",
       "supportsTablet": true,
       "bundleIdentifier": "com.spl.ohbetappfinal",
       "icon": "./assets/ohbet-icon-final.png",
