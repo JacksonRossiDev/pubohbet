@@ -13,10 +13,10 @@
     },
     "assetBundlePatterns": [
       "**/*"
-      
+
     ],
     "ios": {
-      "buildNumber": "74",
+      "buildNumber": "76",
       "supportsTablet": true,
       "bundleIdentifier": "com.spl.ohbetappfinal",
       "icon": "./assets/ohbet-icon-final.png",
