@@ -13,6 +13,7 @@
     },
     "assetBundlePatterns": [
       "**/*"
+      
     ],
     "ios": {
       "buildNumber": "74",
