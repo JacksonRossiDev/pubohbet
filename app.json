@@ -5,7 +5,7 @@
     "privacy": "unlisted",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/ohbet-icon-final.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
    
     "updates": {
