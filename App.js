@@ -22,6 +22,7 @@ import CommentScreen  from "./components/main/Comment";
 import PrePartyScreen from "./components/main/PrePartyScreen";
 import PartyScreen    from "./components/main/PartyScreen";
 import Paywall        from "./components/main/WithdrawScreen";
+import Search from "./components/main/Search";
 
 const store = createStore(rootReducer, applyMiddleware(thunk));
 const Stack = createStackNavigator();
@@ -101,7 +102,7 @@ export default class App extends Component {
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Login"    component={LoginScreen} />
-
+          
             <Stack.Screen name="Register" component={RegisterScreen} />
           </Stack.Navigator>
         </NavigationContainer>
@@ -124,6 +125,7 @@ export default class App extends Component {
             <Stack.Screen name="PrePartyScreen"   component={PrePartyScreen} />
             <Stack.Screen name="Comment"          component={CommentScreen} />
             <Stack.Screen name="Paywall"          component={Paywall} />
+            <Stack.Screen name="Search"          component={Search} />
           </Stack.Navigator>
         </NavigationContainer>
       </Provider>
