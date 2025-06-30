@@ -3,7 +3,7 @@
     "name": "OhBet",
     "slug": "ohbetappfinal",
     "privacy": "unlisted",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/ohbet-icon-final.png",
     "userInterfaceStyle": "light",
@@ -14,7 +14,7 @@
       "**/*"
     ],
     "ios": {
-      "buildNumber": "77",
+      "buildNumber": "78",
       "supportsTablet": true,
       "bundleIdentifier": "com.spl.ohbetappfinal",
       "icon": "./assets/ohbet-icon-final.png",
