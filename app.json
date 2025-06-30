@@ -3,18 +3,28 @@
     "name": "OhBet",
     "slug": "ohbetappfinal",
     "privacy": "unlisted",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/21.png",
+    "icon": "./assets/ohbet-icon-final.png",
     "userInterfaceStyle": "light",
+   
     "updates": {
       "fallbackToCacheTimeout": 0
     },
     "assetBundlePatterns": [
       "**/*"
     ],
-   "ios": {
-      "supportsTablet": true
+    "ios": {
+      "buildNumber": "74",
+      "supportsTablet": true,
+      "bundleIdentifier": "com.spl.ohbetappfinal",
+      "icon": "./assets/ohbet-icon-final.png",
+      "infoPlist": {
+        "CFBundleDisplayName": "OhBet"
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +38,7 @@
       "package": "com.spl.ohbetappfinal"
     },
     "web": {
-      "favicon": "./assets/icon.png"
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       [
