@@ -2,48 +2,33 @@
 // @ts-nocheck
 import React, { useEffect, useState } from "react";
 import {
-  ScrollView,
-  SafeAreaView,
   View,
   Text,
   Image,
+  SafeAreaView,
   StyleSheet,
 } from "react-native";
-import AntDesign from '@expo/vector-icons/AntDesign';
-
 import { connect } from "react-redux";
 import firebase from "firebase/compat/app";
 import "firebase/firestore";
 import AnimatedHand from "./AnimatedHand";
 import { moderateScale } from "react-native-size-matters";
-import { TouchableOpacity } from "react-native-gesture-handler";
 
 const PrePartyScreen = ({ currentUser, route, navigation }) => {
-  // log to confirm
-  useEffect(() => {
-    console.log("PreParty params:", route.params);
-  }, [route.params]);
-  const goback = async () => {
-    console.log("hi");
-
-    navigation.navigate("Home")
-    
-  }
   const {
     postId,
     wager = 0,
 
-    // now matching your Feed.js
     creatorUid,
     creatorPPUrl,
 
     riskerUid,
     riskerPPUrl,
-
-    agreementCount = 0,
   } = route.params;
 
   const [self, setSelf] = useState(null);
+
+  // subscribe to our own user doc so balances stay fresh
   useEffect(() => {
     const unsub = firebase
       .firestore()
@@ -55,91 +40,121 @@ const PrePartyScreen = ({ currentUser, route, navigation }) => {
     return () => unsub();
   }, []);
 
+  // only the risker may trigger the handshake
   const isRisker = currentUser.uid === riskerUid;
 
   const gotoDeal = async () => {
-    try {
-      // 1) mark handshake in Firestore
-      await firebase
-        .firestore()
-        .collection("posts")
-        .doc(creatorUid)            // the user‐folder
-        .collection("userPosts")    // their sub‐collection
-        .doc(postId)                // the actual post
-        .update({ handsShaken: true });
-  
-      // 2) then navigate
-      navigation.navigate("PartyScreen", {
-        postId,
-        wager,
-        creatorUid,
-        creatorPPUrl,
-        creatorBalance: self?.creditBalance ?? 0,
-        riskerUid,
-        riskerPPUrl,
-        riskerBalance: self?.creditBalance ?? 0,
-        agreementCount,
-      });
-    } catch (err) {
-      console.error("Error setting handsShaken:", err);
-      // you could alert the user here if you want
-    }
+    // mark handshake in Firestore
+    await firebase
+      .firestore()
+      .collection("posts")
+      .doc(creatorUid)
+      .collection("userPosts")
+      .doc(postId)
+      .update({ handsShaken: true });
+    // navigate to PartyScreen
+    navigation.navigate("PartyScreen", {
+      postId,
+      wager,
+      creatorUid,
+      creatorPPUrl,
+      creatorBalance: self?.creditBalance ?? 0,
+      riskerUid,
+      riskerPPUrl,
+      riskerBalance: self?.creditBalance ?? 0,
+    });
   };
-  
 
   return (
-    <ScrollView style={{ backgroundColor: "#6CB4EE" }}>
-      <SafeAreaView style={styles.headerRow}>
-        <TouchableOpacity onPress={goback}>
-        <AntDesign name="back" size={24} color="white" />
-        </TouchableOpacity>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        {/* 1) Title */}
+        <Text style={styles.title}>Pending Agreement</Text>
 
-        <Image style={styles.avatar} source={{ uri: creatorPPUrl }} />
-        <Text style={styles.wagerText}>${wager}</Text>
-        <Image style={styles.avatar} source={{ uri: riskerPPUrl }} />
-      </SafeAreaView>
+        {/* 2) Avatars side by side */}
+        <View style={styles.avatarsRow}>
+          <Image style={styles.avatar} source={{ uri: creatorPPUrl }} />
+          <Image style={styles.avatar} source={{ uri: riskerPPUrl }} />
+        </View>
 
-      <View style={styles.handContainer}>
-        {isRisker ? (
-          <AnimatedHand onFinish={gotoDeal} />
-        ) : (
-          <Text style={styles.waitText}>
-            Waiting for challenger to accept…
-          </Text>
-        )}
+        {/* 3) Wager box */}
+        <View style={styles.wagerBox}>
+          <Text style={styles.wagerBoxText}>${wager}</Text>
+        </View>
+
+        {/* 4) Hand animation */}
+        <View style={styles.handContainer}>
+          {isRisker ? (
+            <AnimatedHand onFinish={gotoDeal} />
+          ) : (
+            <Text style={styles.waitText}>
+              Waiting for challenger to accept…
+            </Text>
+          )}
+        </View>
+
+        {/* 5) Instruction under hands */}
+        <Text style={styles.instruction}>Slide Your Hand to Begin!</Text>
       </View>
-    </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "center",
+  safe: {
+    flex: 1,
+    backgroundColor: "#6CB4EE",
+  },
+  container: {
+    flex: 1,
     alignItems: "center",
-    paddingVertical: moderateScale(20, 0.1),
+    paddingTop: moderateScale(20, 0.1),
+  },
+  title: {
+    fontSize: moderateScale(30, 0.1),
+    fontWeight: "700",
+    color: "white",
+    marginBottom: moderateScale(20, 0.1),
+  },
+  avatarsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    width: "100%",
+    marginBottom: moderateScale(20, 0.1),
   },
   avatar: {
     width: moderateScale(130, 0.1),
     height: moderateScale(130, 0.1),
-    borderRadius: 100,
-    marginHorizontal: moderateScale(20, 0.1),
+    borderRadius: moderateScale(65, 0.1),
   },
-  wagerText: {
-    fontSize: moderateScale(18, 0.1),
-    fontWeight: "bold",
-    color: "green",
+  wagerBox: {
+    backgroundColor: "white",
+    paddingHorizontal: moderateScale(20, 0.1),
+    paddingVertical: moderateScale(10, 0.1),
+    borderRadius: moderateScale(8, 0.1),
+    marginBottom: moderateScale(30, 0.1),
+  },
+  wagerBoxText: {
+    fontSize: moderateScale(20, 0.1),
+    fontWeight: "600",
+    color: "#6CB4EE",
   },
   handContainer: {
-    flex: 1,
-    justifyContent: "center",
+    width: "100%",
+    marginTop:140,
     alignItems: "center",
-    height: moderateScale(300, 0.1),
+    marginBottom: moderateScale(35, 0.1),
   },
   waitText: {
     color: "white",
     fontSize: moderateScale(16, 0.1),
     textAlign: "center",
+  },
+  instruction: {
+    color: "white",
+    fontSize:35,
+    fontWeight: "600",
+    marginTop: moderateScale(120, 0.1),
   },
 });
 

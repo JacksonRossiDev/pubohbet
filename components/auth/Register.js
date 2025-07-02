@@ -48,6 +48,7 @@ export class Register extends Component {
           .set({
             name,
             email,
+      creditBalance:500
             
           });
       })

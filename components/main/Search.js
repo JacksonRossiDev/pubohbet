@@ -13,14 +13,12 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import firebase from "firebase/compat/app";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { moderateScale } from "react-native-size-matters";
-import CustomHeader from "../reusable/CustomHeader";
 import moment from "moment";
 import { designHeightToPx } from "../utils/dimensions";
 require("firebase/firestore");
 
 export default function Search(props) {
   const [users, setUsers] = useState([]);
-  // const [users, setUsers] = useState<users[]>([]);
 
   const fetchUsers = (search) => {
     firebase
@@ -29,25 +27,39 @@ export default function Search(props) {
       .where("name", ">=", search)
       .get()
       .then((snapshot) => {
-        let users = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          const id = doc.id;
-          return { id, ...data };
-        });
-        // @ts-ignore
+        const users = snapshot.docs
+          .map((doc) => {
+            const data = doc.data();
+            const id = doc.id;
+            if (data?.name && data?.ppUrl) {
+              return { id, ...data };
+            }
+            return null;
+          })
+          .filter(Boolean);
         setUsers(users);
       });
   };
+
   return (
     <SafeAreaView edges={["top"]} style={styles.safe}>
-      {/* <CustomHeader name={"Search Anything"} /> */}
-
       <View style={styles.container}>
+
+        {/* Back Arrow Button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => props.navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+
         <View style={styles.inputWrapper}>
           <Ionicons name="search" color={"#7A7A7A"} size={20} />
           <TextInput
             style={styles.input}
             placeholder="someemail@gmail.com"
+            placeholderTextColor="#7A7A7A"
             onChangeText={(search) => fetchUsers(search)}
           />
         </View>
@@ -61,6 +73,7 @@ export default function Search(props) {
           ListHeaderComponent={() => (
             <View style={{ height: moderateScale(20, 0.1) }} />
           )}
+          keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <TouchableOpacity
               activeOpacity={0.8}
@@ -74,21 +87,21 @@ export default function Search(props) {
                   <Image
                     style={styles.searchResultImage}
                     source={{
-                      uri: item.ppUrl,
+                      uri: item.ppUrl || "https://via.placeholder.com/40",
                     }}
                   />
                 </View>
                 <View style={styles.searchResultTextWrapper}>
-                  <Text style={styles.searchResultTitle}>{item.name}</Text>
+                  <Text style={styles.searchResultTitle}>
+                    {item.name || "No Name"}
+                  </Text>
                   <Text style={styles.searchResultDesc}>
                     {moment().format("DD MMM YYYY")}
                   </Text>
                 </View>
               </View>
 
-              <TouchableOpacity activeOpacity={0.8}>
-                <Ionicons name="menu" color={"#2E85F7"} size={20} />
-              </TouchableOpacity>
+              <Ionicons name="menu" color={"#2E85F7"} size={20} />
             </TouchableOpacity>
           )}
         />
@@ -106,9 +119,15 @@ const styles = StyleSheet.create({
   container: {
     width: "100%",
     alignItems: "center",
-    marginTop:15,
+    marginTop: 15,
     flex: 1,
     paddingHorizontal: moderateScale(20, 0.1),
+  },
+  backButton: {
+    alignSelf: "flex-start",
+    marginTop: moderateScale(10, 0.1),
+    marginBottom: moderateScale(10, 0.1),
+    padding: moderateScale(8, 0.1),
   },
   inputWrapper: {
     flexDirection: "row",
@@ -119,7 +138,7 @@ const styles = StyleSheet.create({
     height: designHeightToPx(70),
     backgroundColor: "#EEF0F5",
     borderRadius: moderateScale(10, 0.1),
-    marginTop: designHeightToPx(48),
+    marginTop: designHeightToPx(10),
     padding: moderateScale(12, 0.1),
   },
   input: {
@@ -160,7 +179,7 @@ const styles = StyleSheet.create({
   searchResultTitle: {
     fontSize: moderateScale(14, 0.1),
     fontWeight: "400",
-    color:'white',
+    color: "white",
     marginBottom: moderateScale(4, 0.1),
   },
   searchResultDesc: {

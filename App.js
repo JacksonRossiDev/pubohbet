@@ -11,6 +11,7 @@ import rootReducer from "./redux/reducers";
 import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { Video } from "expo-av";
+import CConfirmedScreen from "./components/main/CConfirmedScreen";
 
 import RegisterScreen from "./components/auth/Register";
 import LoginScreen    from "./components/auth/Login";
@@ -125,6 +126,11 @@ export default class App extends Component {
             <Stack.Screen name="PrePartyScreen"   component={PrePartyScreen} />
             <Stack.Screen name="Comment"          component={CommentScreen} />
             <Stack.Screen name="Paywall"          component={Paywall} />
+            <Stack.Screen
+  name="CConfirmedScreen"
+  component={CConfirmedScreen}
+  options={{ headerShown: false }}
+/>
             <Stack.Screen name="Search"          component={Search} />
           </Stack.Navigator>
         </NavigationContainer>

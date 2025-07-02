@@ -1,6 +1,5 @@
 // PartyScreen.js
 // @ts-nocheck
-import AntDesign from '@expo/vector-icons/AntDesign';
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -8,13 +7,13 @@ import {
   Image,
   SafeAreaView,
   StyleSheet,
+  TouchableOpacity,
 } from "react-native";
 import Slider from "@react-native-community/slider";
 import { connect } from "react-redux";
 import firebase from "firebase/compat/app";
 import "firebase/firestore";
 import { moderateScale } from "react-native-size-matters";
-import { TouchableOpacity } from 'react-native-gesture-handler';
 
 const PartyScreen = ({ currentUser, route, navigation }) => {
   const {
@@ -26,48 +25,51 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
     riskerPPUrl,
   } = route.params;
 
-  // Local state for what each user slid, plus completion flag
-  const [creatorChoice, setCreatorChoice] = useState(null);
-  const [riskerChoice, setRiskerChoice]   = useState(null);
-  const [betComplete, setBetComplete]     = useState(false);
+  const authUid   = firebase.auth().currentUser?.uid;
+  const amCreator = authUid === creatorUid;
+  const amRisker  = authUid === riskerUid;
 
-  // 1) Subscribe in real time to the post doc so we know:
-  //    • if it’s already completed
-  //    • if either slider field already exists (e.g. returning user)
+  const [creatorName, setCreatorName] = useState("");
+  const [riskerName,  setRiskerName]  = useState("");
+  const [creatorChoice, setCreatorChoice] = useState(null);
+  const [riskerChoice,  setRiskerChoice]  = useState(null);
+  const [betComplete,   setBetComplete]   = useState(false);
+
+  // fetch the display names
   useEffect(() => {
-    const docRef = firebase
+    firebase
+      .firestore()
+      .collection("users")
+      .doc(creatorUid)
+      .get()
+      .then(snap => snap.exists && setCreatorName(snap.data().name))
+      .catch(console.error);
+    firebase
+      .firestore()
+      .collection("users")
+      .doc(riskerUid)
+      .get()
+      .then(snap => snap.exists && setRiskerName(snap.data().name))
+      .catch(console.error);
+  }, [creatorUid, riskerUid]);
+
+  // listen for stored choices & completion
+  useEffect(() => {
+    const ref = firebase
       .firestore()
       .collection("posts")
       .doc(creatorUid)
       .collection("userPosts")
       .doc(postId);
-
-    const unsub = docRef.onSnapshot((snap) => {
+    return ref.onSnapshot(snap => {
       if (!snap.exists) return;
-      const data = snap.data();
-      if (data.betComplete) {
-        setBetComplete(true);
-      }
-      if (data.sliderCreatorChoice != null) {
-        setCreatorChoice(data.sliderCreatorChoice);
-      }
-      if (data.sliderRiskerChoice != null) {
-        setRiskerChoice(data.sliderRiskerChoice);
-      }
+      const d = snap.data();
+      if (d.betComplete) setBetComplete(true);
+      if (d.sliderCreatorChoice != null) setCreatorChoice(d.sliderCreatorChoice);
+      if (d.sliderRiskerChoice  != null) setRiskerChoice(d.sliderRiskerChoice);
     });
-    return () => unsub();
   }, [creatorUid, postId]);
 
-  // 2) Who is who?
-  const amCreator = firebase.auth().currentUser?.uid === creatorUid;
-  const amRisker  = firebase.auth().currentUser?.uid === riskerUid;
-  const goback = async () => {
-    console.log("hi");
-
-    navigation.navigate("Home")
-
-  }
-  // 3) Helpers to write each slider field
   const writeChoice = (field, choice) => {
     firebase
       .firestore()
@@ -79,72 +81,61 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
       .catch(console.error);
   };
 
-  const onCreatorSlide = (val) => {
-    const c = val < 0.5 ? 0 : 1;
+  const onCreatorSlide = v => {
+    const c = v < 0.5 ? 0 : 1;
     setCreatorChoice(c);
     writeChoice("sliderCreatorChoice", c);
   };
-  const onRiskerSlide = (val) => {
-    const c = val < 0.5 ? 0 : 1;
+  const onRiskerSlide = v => {
+    const c = v < 0.5 ? 0 : 1;
     setRiskerChoice(c);
     writeChoice("sliderRiskerChoice", c);
   };
 
-  // 4) Once both exist, match, and not already completed → payout + mark done
+  // once both match and not already completed → payout + flag done
   useEffect(() => {
     if (
       betComplete ||
       creatorChoice == null ||
-      riskerChoice == null ||
+      riskerChoice  == null ||
       creatorChoice !== riskerChoice
-    ) {
-      return;
-    }
-  
+    ) return;
+
     const creatorWins = creatorChoice === 0;
     const winnerUid   = creatorWins ? creatorUid : riskerUid;
     const loserUid    = creatorWins ? riskerUid  : creatorUid;
-  
-    // Firestore references
+
     const winnerRef = firebase.firestore().collection("users").doc(winnerUid);
     const loserRef  = firebase.firestore().collection("users").doc(loserUid);
-    const postDocRef = firebase
+    const postRef   = firebase
       .firestore()
       .collection("posts")
       .doc(creatorUid)
       .collection("userPosts")
       .doc(postId);
-  
-    firebase
-      .firestore()
-      .runTransaction(async (tx) => {
-        const [wSnap, lSnap] = await Promise.all([
-          tx.get(winnerRef),
-          tx.get(loserRef),
-        ]);
-        const wOld = wSnap.data()?.creditBalance ?? 0;
-        const lOld = lSnap.data()?.creditBalance ?? 0;
-  
-        // now this is numeric addition
-        tx.set(
-          winnerRef,
-          { creditBalance: wOld + wager },
-          { merge: true }
-        );
-        tx.set(
-          loserRef,
-          { creditBalance: lOld - wager },
-          { merge: true }
-        );
-  
-        // mark agreements & complete
-        const agg = postDocRef.collection("agreements");
-        tx.set(agg.doc(winnerUid), {});
-        tx.set(agg.doc(loserUid), {});
-        tx.set(postDocRef, { betComplete: true }, { merge: true });
-      })
-      .then(() => navigation.navigate("Home"))
-      .catch(console.error);
+
+    firebase.firestore().runTransaction(async tx => {
+      const [wSnap, lSnap] = await Promise.all([
+        tx.get(winnerRef),
+        tx.get(loserRef),
+      ]);
+      const wOld = wSnap.data()?.creditBalance ?? 0;
+      const lOld = lSnap.data()?.creditBalance ?? 0;
+
+      tx.set(winnerRef, { creditBalance: wOld + wager }, { merge: true });
+      tx.set(loserRef,  { creditBalance: lOld - wager }, { merge: true });
+
+      // agreements subcollection
+      const agg = postRef.collection("agreements");
+      tx.set(agg.doc(winnerUid), {});
+      tx.set(agg.doc(loserUid), {});
+      // mark bet complete
+      tx.set(postRef, { betComplete: true }, { merge: true });
+    })
+    .then(() => {
+      navigation.navigate("CConfirmedScreen", { creatorUid, postId });
+    })
+    .catch(console.error);
   }, [
     creatorChoice,
     riskerChoice,
@@ -152,69 +143,82 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
     creatorUid,
     riskerUid,
     postId,
-    wager,    // now a number
+    wager,
     navigation,
   ]);
 
   return (
     <SafeAreaView style={styles.safe}>
-        <TouchableOpacity onPress={goback}>
-        <AntDesign name="back" size={24} color="white" />
-        </TouchableOpacity>
-      {/* avatars + wager */}
+      <Text style={styles.headerTitle}>Who Won The Bet?</Text>
+
       <View style={styles.row}>
         <Image style={styles.avatar} source={{ uri: creatorPPUrl }} />
-        <Text style={styles.wager}>${wager}</Text>
+        <View style={styles.wagerBox}>
+          <Text style={styles.wagerText}>${wager}</Text>
+        </View>
         <Image style={styles.avatar} source={{ uri: riskerPPUrl }} />
       </View>
 
-      {/* CREATOR slider: only interactive if you’re the creator & not done */}
+      {/* Creator’s slider */}
       <View
         pointerEvents={amCreator && !betComplete ? "auto" : "none"}
-        style={[styles.sliderGroup, !amCreator || betComplete ? styles.disabled : {}]}
+        style={[
+          styles.sliderGroup,
+          (!amCreator || betComplete) && styles.disabled,
+        ]}
       >
-        <Text style={styles.label}>Creator’s pick</Text>
+        <Text style={styles.sliderLabel}>{creatorName}’s pick</Text>
         <Slider
           style={styles.slider}
           minimumValue={0}
           maximumValue={1}
-          value={creatorChoice != null ? creatorChoice : 0.5}
+          value={creatorChoice ?? 0.5}
           onValueChange={onCreatorSlide}
           minimumTrackTintColor="#fff"
           maximumTrackTintColor="#444"
           thumbTintColor="#fff"
         />
         <View style={styles.sideLabels}>
-          <Text style={styles.sideLabel}>Creator wins</Text>
-          <Text style={styles.sideLabel}>Challenger wins</Text>
+          <Text style={styles.sideLabel}>{creatorName} wins</Text>
+          <Text style={styles.sideLabel}>{riskerName} wins</Text>
         </View>
       </View>
 
-      {/* RISKER slider: only interactive if you’re the risker & not done */}
+      {/* Challenger’s slider */}
       <View
         pointerEvents={amRisker && !betComplete ? "auto" : "none"}
-        style={[styles.sliderGroup, !amRisker || betComplete ? styles.disabled : {}]}
+        style={[
+          styles.sliderGroup,
+          (!amRisker || betComplete) && styles.disabled,
+        ]}
       >
-        <Text style={styles.label}>Challenger’s pick</Text>
+        <Text style={styles.sliderLabel}>{riskerName}’s pick</Text>
         <Slider
           style={styles.slider}
           minimumValue={0}
           maximumValue={1}
-          value={riskerChoice != null ? riskerChoice : 0.5}
+          value={riskerChoice ?? 0.5}
           onValueChange={onRiskerSlide}
           minimumTrackTintColor="#fff"
           maximumTrackTintColor="#444"
           thumbTintColor="#fff"
         />
         <View style={styles.sideLabels}>
-          <Text style={styles.sideLabel}>Creator wins</Text>
-          <Text style={styles.sideLabel}>Challenger wins</Text>
+          <Text style={styles.sideLabel}>{creatorName} wins</Text>
+          <Text style={styles.sideLabel}>{riskerName} wins</Text>
         </View>
       </View>
 
       <Text style={styles.instruction}>
         Slide to who you think won—once both match, the bet pays out.
       </Text>
+
+      <TouchableOpacity
+        style={styles.homeBtn}
+        onPress={() => navigation.navigate("Home")}
+      >
+        <Text style={styles.homeBtnText}>Back to Home</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -223,55 +227,84 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: "#36d8ff",
-    padding: 20,
+    padding: moderateScale(20, 0.1),
+  },
+  headerTitle: {
+    fontSize: moderateScale(24, 0.1),
+    fontWeight: "bold",
+    color: "white",
+    textAlign: "center",
+    marginBottom: moderateScale(20, 0.1),
   },
   row: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: moderateScale(30, 0.1),
   },
   avatar: {
     width: moderateScale(80, 0.1),
     height: moderateScale(80, 0.1),
     borderRadius: moderateScale(40, 0.1),
-    marginHorizontal: 20,
   },
-  wager: {
+  wagerBox: {
+    backgroundColor: "white",
+    paddingHorizontal: moderateScale(16, 0.1),
+    paddingVertical: moderateScale(8, 0.1),
+    marginHorizontal: moderateScale(12, 0.1),
+    borderRadius: moderateScale(8, 0.1),
+  },
+  wagerText: {
     fontSize: moderateScale(20, 0.1),
     fontWeight: "bold",
     color: "green",
   },
   sliderGroup: {
-    marginBottom: 30,
+    marginBottom: moderateScale(30, 0.1),
   },
   disabled: {
     opacity: 0.5,
   },
-  label: {
+  sliderLabel: {
     color: "white",
+    fontSize: moderateScale(16, 0.1),
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: moderateScale(8, 0.1),
     fontWeight: "600",
   },
   slider: {
-    width: "100%",
+    width: "90%",
+    alignSelf: "center",
     height: 40,
   },
   sideLabels: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 6,
+    marginTop: moderateScale(6, 0.1),
   },
   sideLabel: {
     color: "white",
     fontSize: moderateScale(12, 0.1),
+    paddingHorizontal:10
   },
   instruction: {
-    color: "white",
     textAlign: "center",
-    marginTop: 20,
-    fontSize: moderateScale(14, 0.1),
+    color: "white",
+    fontSize: moderateScale(24, 0.1),
+    marginTop: moderateScale(10, 0.1),
+  },
+  homeBtn: {
+    backgroundColor: "white",
+    paddingVertical: moderateScale(12, 0.1),
+    paddingHorizontal: moderateScale(20, 0.1),
+    borderRadius: moderateScale(8, 0.1),
+    alignSelf: "center",
+    marginTop: moderateScale(20, 0.1),
+  },
+  homeBtnText: {
+    color: "#36d8ff",
+    fontSize: moderateScale(16, 0.1),
+    fontWeight: "600",
   },
 });
 

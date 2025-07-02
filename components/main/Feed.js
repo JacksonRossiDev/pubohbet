@@ -24,30 +24,27 @@ import {
   fetchUserPosts,
 } from "../../redux/actions";
 import StepIndicator from "react-native-step-indicator";
+
 const STEP_LABELS = ["Initiated", "Accepted", "Complete", "Paid"];
+const POSTS_PER_PAGE = 10;
 
 function Feed({
   currentUser,
   userPosts = [],
   feed = [],
-  following = [],
   usersFollowingLoaded,
   navigation,
 }) {
   const dispatch = useDispatch();
 
-  // full list of posts & locked posts
-  const [posts, setPosts] = useState([]);
-  const [lockedPosts, setLockedPosts] = useState([]);
-
-  // pagination state
+  // all posts array and paginated visible posts
+  const [allPosts, setAllPosts] = useState([]);
   const [visiblePosts, setVisiblePosts] = useState([]);
-  const [page, setPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const postsPerPage = 10;
 
-  // initial loading spinner
+  // pagination & loading flags
+  const [page, setPage] = useState(1);
   const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // image viewer state
   const [isViewerVisible, setIsViewerVisible] = useState(false);
@@ -60,103 +57,82 @@ function Feed({
     dispatch(fetchUserPosts());
   }, [dispatch]);
 
-  // merge your posts + followed feed, **dedupe**, then sort
+  // combine, dedupe, sort whenever feed or userPosts change
   useEffect(() => {
-    const mine = userPosts.map(p => ({ ...p, user: currentUser }));
+    const mine = userPosts.map((p) => ({ ...p, user: currentUser }));
     const combined = [...mine, ...feed];
     const uniqueMap = combined.reduce((acc, item) => {
       acc[item.id] = item;
       return acc;
     }, {});
-    const unique = Object.values(uniqueMap);
-    const sorted = unique.sort(
+    const sorted = Object.values(uniqueMap).sort(
       (a, b) => b.creation.seconds - a.creation.seconds
     );
-
-    setPosts(sorted);
-    setLockedPosts(sorted.filter(p => p.status === "locked"));
-    // leave pagination until comments are fetched
+    setAllPosts(sorted);
+    setPage(1);
   }, [feed, userPosts, currentUser]);
 
-  // fetch comment counts and initialize pagination
-  useEffect(() => {
-    const mine = userPosts.map(p => ({ ...p, user: currentUser }));
-    const combined = [...mine, ...feed];
-    const uniqueMap = combined.reduce((acc, item) => {
-      acc[item.id] = item;
-      return acc;
-    }, {});
-    const unique = Object.values(uniqueMap);
-    const sorted = unique.sort(
-      (a, b) => b.creation.seconds - a.creation.seconds
+  // fetch comment counts helper
+  const fetchCommentCounts = async (postsArray) =>
+    Promise.all(
+      postsArray.map(async (post) => {
+        try {
+          const snap = await firebase
+            .firestore()
+            .collection("posts")
+            .doc(post.user.uid)
+            .collection("userPosts")
+            .doc(post.id)
+            .collection("comments")
+            .get();
+          return { ...post, commentsCount: snap.size };
+        } catch {
+          return { ...post, commentsCount: 0 };
+        }
+      })
     );
 
-    const fetchCommentCounts = async () => {
+  // load first page of posts + their comment counts
+  useEffect(() => {
+    if (!allPosts.length) {
+      setLoadingInitial(false);
+      return;
+    }
+    (async () => {
       try {
-        const postsWithCounts = await Promise.all(
-          sorted.map(async (post) => {
-            try {
-              const commentsSnapshot = await firebase
-                .firestore()
-                .collection("posts")
-                .doc(post.user.uid)
-                .collection("userPosts")
-                .doc(post.id)
-                .collection("comments")
-                .get();
-              return {
-                ...post,
-                commentsCount: commentsSnapshot.size,
-              };
-            } catch (e) {
-              console.error("Error fetching comments for post:", post.id, e);
-              return {
-                ...post,
-                commentsCount: 0,
-              };
-            }
-          })
-        );
-
-        // set full data
-        setPosts(postsWithCounts);
-        setLockedPosts(postsWithCounts.filter(p => p.status === "locked"));
-
-        // initialize first page
-        setVisiblePosts(postsWithCounts.slice(0, postsPerPage));
-        setPage(1);
-
+        const firstSlice = allPosts.slice(0, POSTS_PER_PAGE);
+        const withCounts = await fetchCommentCounts(firstSlice);
+        setVisiblePosts(withCounts);
       } catch (e) {
-        console.error("Error fetching comments:", e);
+        console.error("Error loading initial posts:", e);
       } finally {
         setLoadingInitial(false);
       }
-    };
-
-    fetchCommentCounts();
-  }, [feed, userPosts, currentUser]);
+    })();
+  }, [allPosts]);
 
   // infinite scroll handler
-  const handleLoadMore = () => {
+  const handleLoadMore = async () => {
     if (loadingMore) return;
-    if (visiblePosts.length >= posts.length) return;
+    if (visiblePosts.length >= allPosts.length) return;
+
     setLoadingMore(true);
-    const nextPage = page + 1;
-    setVisiblePosts(posts.slice(0, nextPage * postsPerPage));
-    setPage(nextPage);
-    setLoadingMore(false);
+    const start = page * POSTS_PER_PAGE;
+    const end = start + POSTS_PER_PAGE;
+    const nextSlice = allPosts.slice(start, end);
+
+    try {
+      const nextWithCounts = await fetchCommentCounts(nextSlice);
+      setVisiblePosts((prev) => [...prev, ...nextWithCounts]);
+      setPage((prev) => prev + 1);
+    } catch (e) {
+      console.error("Error loading more posts:", e);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
-  // spinner until data + users loaded
-  if (loadingInitial || !usersFollowingLoaded) {
-    return (
-      <SafeAreaView style={{ flex: 1, justifyContent: "center" }}>
-        <ActivityIndicator size="large" />
-      </SafeAreaView>
-    );
-  }
-
-  // like/dislike handlers
+  // like/dislike helpers
   const onLikePress = (uid, pid, col) =>
     firebase
       .firestore()
@@ -178,6 +154,15 @@ function Feed({
       .doc(firebase.auth().currentUser.uid)
       .delete();
 
+  // show spinner until initial load + following data ready
+  if (loadingInitial || !usersFollowingLoaded) {
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: "center" }}>
+        <ActivityIndicator size="large" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <CustomHeader
@@ -187,8 +172,8 @@ function Feed({
 
       <FlatList
         data={visiblePosts}
-        keyExtractor={item => item.id}
-        initialNumToRender={postsPerPage}
+        keyExtractor={(item) => item.id}
+        initialNumToRender={POSTS_PER_PAGE}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={() =>
@@ -196,10 +181,12 @@ function Feed({
         }
         ListHeaderComponent={() => (
           <>
-            {/* trending carousel */}
-          
+            {/* trending carousel placeholder */}
+            <View style={styles.trendingWrapper}>
+              {/* TODO: implement your trending carousel here */}
+            </View>
 
-            {/* create‐risk prompt */}
+            {/* create-risk prompt */}
             <View style={styles.postStatusContainer}>
               <View style={styles.postStatusWrapper}>
                 <View style={styles.postStatusHeader}>
@@ -224,7 +211,6 @@ function Feed({
           </>
         )}
         renderItem={({ item }) => {
-          // figure out which phase we’re in (1–4)
           const currentPhase = item.betComplete
             ? 4
             : item.handsShaken
@@ -575,11 +561,10 @@ const stepIndicatorStyles = {
 };
 
 const mapStateToProps = (store) => ({
-  currentUser:           store.userState.currentUser,
-  userPosts:             store.userState.posts,
-  following:             store.userState.following,
-  feed:                  store.usersState.feed,
-  usersFollowingLoaded:  store.usersState.usersFollowingLoaded,
+  currentUser: store.userState.currentUser,
+  userPosts: store.userState.posts,
+  feed: store.usersState.feed,
+  usersFollowingLoaded: store.usersState.usersFollowingLoaded,
 });
 
 export default connect(mapStateToProps)(Feed);
