@@ -18,33 +18,26 @@ const PrePartyScreen = ({ currentUser, route, navigation }) => {
   const {
     postId,
     wager = 0,
-
     creatorUid,
     creatorPPUrl,
-
     riskerUid,
     riskerPPUrl,
   } = route.params;
 
   const [self, setSelf] = useState(null);
 
-  // subscribe to our own user doc so balances stay fresh
   useEffect(() => {
     const unsub = firebase
       .firestore()
       .collection("users")
       .doc(firebase.auth().currentUser?.uid)
-      .onSnapshot((snap) => {
-        if (snap.exists) setSelf(snap.data());
-      });
+      .onSnapshot((snap) => snap.exists && setSelf(snap.data()));
     return () => unsub();
   }, []);
 
-  // only the risker may trigger the handshake
   const isRisker = currentUser.uid === riskerUid;
 
   const gotoDeal = async () => {
-    // mark handshake in Firestore
     await firebase
       .firestore()
       .collection("posts")
@@ -52,7 +45,6 @@ const PrePartyScreen = ({ currentUser, route, navigation }) => {
       .collection("userPosts")
       .doc(postId)
       .update({ handsShaken: true });
-    // navigate to PartyScreen
     navigation.navigate("PartyScreen", {
       postId,
       wager,
@@ -93,8 +85,14 @@ const PrePartyScreen = ({ currentUser, route, navigation }) => {
           )}
         </View>
 
-        {/* 5) Instruction under hands */}
+        {/* 5) Instruction under hands - moved up closer */}
         <Text style={styles.instruction}>Slide Your Hand to Begin!</Text>
+
+        {/* 6) Logo under instruction */}
+        <Image
+          source={require('../assets/ohbet-icon.png')}
+          style={styles.logo}
+        />
       </View>
     </SafeAreaView>
   );
@@ -103,7 +101,7 @@ const PrePartyScreen = ({ currentUser, route, navigation }) => {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#6CB4EE",
+    backgroundColor: "#85C8E5",
   },
   container: {
     flex: 1,
@@ -126,6 +124,8 @@ const styles = StyleSheet.create({
     width: moderateScale(130, 0.1),
     height: moderateScale(130, 0.1),
     borderRadius: moderateScale(65, 0.1),
+    borderWidth: moderateScale(4, 0.1),
+    borderColor: 'white',
   },
   wagerBox: {
     backgroundColor: "white",
@@ -141,9 +141,9 @@ const styles = StyleSheet.create({
   },
   handContainer: {
     width: "100%",
-    marginTop:140,
+    marginTop: moderateScale(60, 0.1),  // reduced from 140 to bring up
     alignItems: "center",
-    marginBottom: moderateScale(35, 0.1),
+    marginBottom: moderateScale(15, 0.1),
   },
   waitText: {
     color: "white",
@@ -152,9 +152,15 @@ const styles = StyleSheet.create({
   },
   instruction: {
     color: "white",
-    fontSize:35,
+    fontSize: moderateScale(30, 0.1),
     fontWeight: "600",
-    marginTop: moderateScale(120, 0.1),
+    marginTop: moderateScale(45, 0.1), // closer under hands
+  },
+  logo: {
+    width: moderateScale(175, 0.1),
+    height: moderateScale(175, 0.1),
+    marginTop: moderateScale(60, 0.1),
+    alignSelf: 'center',
   },
 });
 

@@ -92,7 +92,7 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
     writeChoice("sliderRiskerChoice", c);
   };
 
-  // once both match and not already completed → payout + flag done
+  // once both match and not already completed → payout + flag done + record Winner
   useEffect(() => {
     if (
       betComplete ||
@@ -104,6 +104,7 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
     const creatorWins = creatorChoice === 0;
     const winnerUid   = creatorWins ? creatorUid : riskerUid;
     const loserUid    = creatorWins ? riskerUid  : creatorUid;
+    const winnerName  = creatorWins ? creatorName : riskerName;
 
     const winnerRef = firebase.firestore().collection("users").doc(winnerUid);
     const loserRef  = firebase.firestore().collection("users").doc(loserUid);
@@ -129,8 +130,13 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
       const agg = postRef.collection("agreements");
       tx.set(agg.doc(winnerUid), {});
       tx.set(agg.doc(loserUid), {});
-      // mark bet complete
-      tx.set(postRef, { betComplete: true }, { merge: true });
+
+      // mark bet complete and record winner’s name
+      tx.set(
+        postRef,
+        { betComplete: true, Winner: winnerName },
+        { merge: true }
+      );
     })
     .then(() => {
       navigation.navigate("CConfirmedScreen", { creatorUid, postId });
@@ -145,6 +151,8 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
     postId,
     wager,
     navigation,
+    creatorName,
+    riskerName,
   ]);
 
   return (
@@ -285,7 +293,7 @@ const styles = StyleSheet.create({
   sideLabel: {
     color: "white",
     fontSize: moderateScale(12, 0.1),
-    paddingHorizontal:10
+    paddingHorizontal: 10,
   },
   instruction: {
     textAlign: "center",

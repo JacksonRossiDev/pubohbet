@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
 
 import firebase from "firebase/compat/app";
 import "firebase/compat/storage";
@@ -29,16 +28,14 @@ export default function Save(props) {
   const uploadImage = async () => {
     const uri = props.route.params?.image;
     if (uri) {
-      const childPath = `post/${firebase.auth().currentUser?.uid}/${Math.random()
-        .toString(36)}`;
+      const childPath = `post/${firebase.auth().currentUser?.uid}/${Math.random().toString(36)}`;
       const response = await fetch(uri);
       const blob = await response.blob();
       const task = firebase.storage().ref().child(childPath).put(blob);
 
       task.on(
         "state_changed",
-        (snapshot) =>
-          console.log(`transferred: ${snapshot.bytesTransferred}`),
+        (snapshot) => console.log(`transferred: ${snapshot.bytesTransferred}`),
         (error) => console.log(error),
         () => {
           task.snapshot.ref.getDownloadURL().then((snapshot) => {
@@ -59,16 +56,17 @@ export default function Save(props) {
       .collection("userPosts")
       .add({
         downloadURL,
+        
         status,
         caption,
+
         userRisker: {
-          uid: userRisker.uid,
-          name: userRisker.name,
-          email: userRisker.email,
-          ppUrl: userRisker.ppUrl,
-          creditBalance: userRisker.creditBalance,
-        },
-        betterAgree: true,
+          uid:            userRisker.uid,
+          name:           userRisker.name,
+          email:          userRisker.email,
+          ppUrl:          userRisker.ppUrl,
+          creditBalance:  userRisker.creditBalance,  // optional
+        },        betterAgree: true,
         wager: Number(wager),
         likesCount: 0,
         agreementCount: 0,
@@ -80,47 +78,32 @@ export default function Save(props) {
       });
   };
 
-  useEffect(() => {
-    const otherUid = props.route.params?.uid;
-    if (
-      otherUid &&
-      otherUid !== firebase.auth().currentUser?.uid
-    ) {
-      firebase
-        .firestore()
-        .collection("users")
-        .doc(otherUid)
-        .get()
-        .then((snapshot) => {
-          if (snapshot.exists) {
-            const data = snapshot.data();
-            data.uid = snapshot.id;
-            setUserRisker(data);
-          }
-        });
-    }
-  }, [props.route.params.uid]);
+useEffect(() => {
+  const otherUid = props.route.params?.uid;
+  if (otherUid && otherUid !== firebase.auth().currentUser?.uid) {
+    firebase
+      .firestore()
+      .collection("users")
+      .doc(otherUid)
+      .get()
+      .then((snapshot) => {
+        if (snapshot.exists) {
+          const data = snapshot.data();
+          data.uid = snapshot.id;       // ← stitch in the UID
+          setUserRisker(data);
+        }
+      });
+  }
+}, [props.route.params.uid]);
+
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => props.navigation.goBack()}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="arrow-back" size={24} color="#333" />
-      </TouchableOpacity>
-
       {props.route.params?.image && (
-        <Image
-          source={{ uri: props.route.params.image }}
-          style={styles.imagePreview}
-        />
+        <Image source={{ uri: props.route.params.image }} style={styles.imagePreview} />
       )}
 
-      <Text style={styles.title}>
-        Create your risk with @{userRisker?.name}
-      </Text>
+      <Text style={styles.title}>Create your risk with @{userRisker?.name}</Text>
 
       <View style={styles.captionBox}>
         <TextInput
@@ -148,11 +131,7 @@ export default function Save(props) {
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.postButton}
-        onPress={uploadImage}
-        activeOpacity={0.9}
-      >
+      <TouchableOpacity style={styles.postButton} onPress={uploadImage} activeOpacity={0.9}>
         <Text style={styles.postButtonText}>Post</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -161,15 +140,10 @@ export default function Save(props) {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
+    padding: 20,
     backgroundColor: "#fff",
     alignItems: "center",
-    marginTop: 100,
-  },
-  backButton: {
-    alignSelf: "flex-start",
-    marginBottom: 20,
-    padding: 6,
+    marginTop:100
   },
   title: {
     fontSize: 16,

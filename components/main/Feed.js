@@ -40,6 +40,7 @@ function Feed({
   // all posts array and paginated visible posts
   const [allPosts, setAllPosts] = useState([]);
   const [visiblePosts, setVisiblePosts] = useState([]);
+  const [lockedPosts, setLockedPosts] = useState([]);
 
   // pagination & loading flags
   const [page, setPage] = useState(1);
@@ -110,6 +111,7 @@ function Feed({
       }
     })();
   }, [allPosts]);
+  
 
   // infinite scroll handler
   const handleLoadMore = async () => {
@@ -221,18 +223,22 @@ function Feed({
           return (
             <TouchableOpacity
               onPress={() => {
+                const isOwner = item.user.uid === currentUser.uid;
                 const params = {
-                  postId: item.id,
-                  wager: item.wager,
-                  creatorUid: item.user.uid,
+                  postId:       item.id,
+                  wager:        item.wager,
+                  creatorUid:   item.user.uid,
                   creatorPPUrl: item.user.ppUrl,
-                  riskerUid: item.userRisker?.uid,
-                  riskerPPUrl: item.userRisker?.ppUrl,
+                  riskerUid:    item.userRisker?.uid,
+                  riskerPPUrl:  item.userRisker?.ppUrl,
                 };
-                navigation.navigate(
-                  isOwner ? "PartyScreen" : "PrePartyScreen",
-                  params
-                );
+                console.log("→ Feed.navigate params:", params);
+        
+                if (isOwner) {
+                  navigation.navigate("PartyScreen", params);
+                } else {
+                  navigation.navigate("PrePartyScreen", params);
+                }
               }}
             >
               <View style={styles.postContainer}>
@@ -290,7 +296,11 @@ function Feed({
                       />
                     </TouchableOpacity>
                   )}
-
+{item.Winner && (
+  <View style={styles.winnerBadge}>
+    <Text style={styles.winnerBadgeText}>Winner: {item.Winner}</Text>
+  </View>
+)}
                   {/* Wager */}
                   <View style={{ flexDirection: "row", marginTop: 12 }}>
                     <Ionicons name="cash-outline" color="green" size={20} />
@@ -491,6 +501,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+
+  winnerBadge: {
+  backgroundColor: 'green',
+  alignSelf: 'flex-start',
+  paddingHorizontal: moderateScale(10, 0.1),
+  paddingVertical: moderateScale(4, 0.1),
+  borderRadius: moderateScale(12, 0.1),
+  marginBottom: moderateScale(8, 0.1),
+},
+winnerBadgeText: {
+  color: 'white',
+  fontWeight: '600',
+  fontSize: moderateScale(12, 0.1),
+},
   postHeaderImageWrapper: {
     padding: moderateScale(1, 0.1),
     justifyContent: "center",
