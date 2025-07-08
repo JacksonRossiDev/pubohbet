@@ -157,7 +157,7 @@ function Feed({
       .delete();
 
   // show spinner until initial load + following data ready
-  if (loadingInitial || !usersFollowingLoaded) {
+  if (loadingInitial ) {
     return (
       <SafeAreaView style={{ flex: 1, justifyContent: "center" }}>
         <ActivityIndicator size="large" />

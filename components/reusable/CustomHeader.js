@@ -60,8 +60,7 @@ const CustomHeader = (props) => {
       <TouchableOpacity
         activeOpacity={0.8}
         style={styles.balanceButton}
-        onPress={console.log("paywall")}
-      >
+ onPress={() => navigation.navigate("Withdraw")}      >
         <Text style={styles.balanceText}>
           {typeof user?.creditBalance === "number"
             ? user.creditBalance

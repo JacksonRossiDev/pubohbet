@@ -1,3 +1,4 @@
+// Register.js
 import React, { Component } from "react";
 import {
   TextInput,
@@ -6,97 +7,98 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image,
   ScrollView,
+  Alert,
 } from "react-native";
 import { moderateScale } from "react-native-size-matters";
-
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
-import {
-  SafeAreaView,
-  withSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView, withSafeAreaInsets } from "react-native-safe-area-context";
 import { designHeightToPx } from "../utils/dimensions";
 
-export class Register extends Component {
+class Register extends Component {
   constructor(props) {
     super(props);
-
     this.state = {
+      name: "",
       email: "",
       password: "",
-      name: "",
-      
+      referralCode: "",    // ← add this
     };
-
-    this.onSignUp = this.onSignUp.bind(this);
   }
 
-  onSignUp() {
-    const { email, password, name, } = this.state;
-    firebase
+onSignUp = async () => {
+  const { name, email, password, referralCode } = this.state;
+  const db = firebase.firestore();
+
+  try {
+    // 1️⃣ Create the Auth user
+    const result = await firebase
       .auth()
-      .createUserWithEmailAndPassword(email, password)
-      .then((result) => {
-        firebase
-          .firestore()
-          .collection("users")
-          // @ts-ignore
-          .doc(firebase.auth().currentUser.uid)
-          .set({
-            name,
-            email,
-      creditBalance:500
-            
-          });
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+      .createUserWithEmailAndPassword(email.trim(), password);
+    const uid = result.user.uid;
+    console.log("✅ Created auth user:", uid);
+
+    // 2️⃣ Resolve the referral code, if provided
+    let referredBy = null;
+    const code = referralCode.trim();
+    if (code) {
+      const codeDoc = await db.collection("codes").doc(code).get();
+      if (codeDoc.exists) {
+        referredBy = codeDoc.data().owner;
+        console.log(`🏷️  Referral code "${code}" → UID:`, referredBy);
+      } else {
+        Alert.alert("Invalid Code", "That referral code doesn’t exist.");
+        return; // abort on bad code
+      }
+    }
+
+    // 3️⃣ Write the user profile document
+    await db.collection("users").doc(uid).set({
+      name: name.trim(),
+      email: email.trim(),
+      creditBalance: 500,
+      referredBy,
+    });
+    console.log("📄 Wrote user doc at users/" + uid);
+
+    // 4️⃣ Navigate to the Home feed
+  } catch (err) {
+    console.error("🚨 Signup error:", err);
+    Alert.alert("Signup failed", err.message);
   }
+};
 
   render() {
-    const { email, password, name } = this.state;
-
     const { insets } = this.props;
+    const { name, email, password, referralCode } = this.state;
 
     return (
       <ImageBackground
-      source={require("../../assets/pit.jpeg")}
+        source={require("../../assets/pit.jpeg")}
         style={{ flex: 1 }}
         resizeMode="stretch"
       >
         <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
           <View style={styles.container}>
-            <View style={styles.blank}>
-              {/* <Image
-                source={require("../../assets/pit.jpeg")}
-                style={styles.logo}
-                resizeMode="contain"
-              /> */}
-            </View>
+            <View style={styles.blank} />
             <View style={styles.form}>
-              <ScrollView
-                style={{ flex: 1 }}
-                showsVerticalScrollIndicator={false}
-              >
+              <ScrollView showsVerticalScrollIndicator={false}>
                 <View
                   style={{
                     flex: 1,
                     alignItems: "center",
-                    paddingBottom: insets.bottom,
                     padding: moderateScale(20, 0.1),
                     paddingTop: designHeightToPx(70 - insets.bottom),
                   }}
                 >
                   <Text style={styles.login}>Register a new account</Text>
                   <Text style={styles.desc}>
-                    Lorem Ipsum is simply dummy text of the printing and
-                    typesetting industry.
+                    Enter your info and, if you have one, a referral code.
                   </Text>
 
+                  {/* Name */}
                   <View style={styles.wrapper}>
                     <TextInput
                       style={[styles.input, styles.topInput]}
@@ -106,36 +108,61 @@ export class Register extends Component {
                     />
                     <Text style={styles.inputLabel}>Name</Text>
                   </View>
+
+                  {/* Email */}
                   <View style={styles.wrapper}>
                     <TextInput
                       style={[styles.input, styles.topInput]}
-                      placeholder="someemail@gmail.com"
+                      placeholder="you@example.com"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
                       value={email}
                       onChangeText={(email) => this.setState({ email })}
                     />
                     <Text style={styles.inputLabel}>Email</Text>
                   </View>
+
+                  {/* Password */}
                   <View style={styles.wrapper}>
                     <TextInput
                       style={[styles.input, styles.topInput]}
-                      placeholder="******************"
-                      secureTextEntry={true}
+                      placeholder="••••••••"
+                      secureTextEntry
                       value={password}
-                      onChangeText={(password) => this.setState({ password })}
+                      onChangeText={(password) =>
+                        this.setState({ password })
+                      }
                     />
                     <Text style={styles.inputLabel}>Password</Text>
                   </View>
-                  
 
+                  {/* Referral Code */}
+                  <View style={styles.wrapper}>
+                    <TextInput
+                      style={[styles.input, styles.topInput]}
+                      placeholder="Jacksonrisker11"
+                      autoCapitalize="none"
+                      value={referralCode}
+                      onChangeText={(referralCode) =>
+                        this.setState({ referralCode })
+                      }
+                    />
+                    <Text style={styles.inputLabel}>Referral Code</Text>
+                  </View>
+
+                  {/* Register Button */}
                   <TouchableOpacity
                     activeOpacity={0.8}
                     style={styles.loginBtn}
-                    onPress={() => this.onSignUp()}
+                    onPress={this.onSignUp}
                   >
                     <Text style={styles.loginBtnLabel}>Register</Text>
                   </TouchableOpacity>
 
-                  <Text style={styles.signupDesc}>Already have an account</Text>
+                  {/* Already have an account */}
+                  <Text style={styles.signupDesc}>
+                    Already have an account?
+                  </Text>
                   <TouchableOpacity
                     onPress={() => this.props.navigation.navigate("Login")}
                   >
@@ -152,99 +179,71 @@ export class Register extends Component {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: "column",
-  },
-  logo: { maxHeight: 90, height: designHeightToPx(90), aspectRatio: 254 / 91 },
-  blank: {
-    flex: 2,
-    marginTop:-40,
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  container: { flex: 1 },
+  blank: { flex: 2, marginTop: -40, backgroundColor: "transparent" },
   form: {
     flex: 8,
     backgroundColor: "white",
-    alignItems: "center",
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
   },
   login: {
     fontSize: moderateScale(20, 0.1),
     fontWeight: "500",
-    marginBottom: designHeightToPx(20),
+    marginBottom: moderateScale(20, 0.1),
   },
   desc: {
     fontSize: moderateScale(14, 0.1),
-    fontWeight: "400",
     color: "#7A7A7A",
     textAlign: "center",
-    lineHeight: moderateScale(24, 0.1),
-    paddingHorizontal: moderateScale(25, 0.1),
-    marginBottom: designHeightToPx(50),
-  },
-  forgotBtn: {
-    marginTop: designHeightToPx(15, 0.1),
-    marginBottom: designHeightToPx(75),
-  },
-  forgotLabel: {
-    fontSize: moderateScale(14, 0.1),
-    fontWeight: "400",
-    color: "#2E85F7",
+    marginBottom: moderateScale(30, 0.1),
   },
   wrapper: {
     width: "100%",
-  },
-  inputLabel: {
-    position: "absolute",
-    top: moderateScale(-8, 0.1),
-    left: moderateScale(20, 0.1),
-    fontSize: moderateScale(14, 0.1),
-    fontWeight: "500",
-    color: "#2E85F7",
-    paddingHorizontal: moderateScale(10, 0.1),
-    backgroundColor: "white",
+    marginBottom: moderateScale(15, 0.1),
   },
   input: {
     width: "100%",
     borderColor: "#E0E0E0",
     borderWidth: 1,
     borderRadius: 10,
-    paddingHorizontal: designHeightToPx(30),
-    height: designHeightToPx(70),
+    paddingHorizontal: moderateScale(20, 0.1),
+    height: moderateScale(50, 0.1),
     fontSize: moderateScale(14, 0.1),
-    fontWeight: "400",
   },
-  topInput: {
-    marginBottom: designHeightToPx(40),
+  topInput: { marginBottom: moderateScale(10, 0.1) },
+  inputLabel: {
+    position: "absolute",
+    top: moderateScale(-8, 0.1),
+    left: moderateScale(20, 0.1),
+    backgroundColor: "white",
+    paddingHorizontal: moderateScale(5, 0.1),
+    color: "#2E85F7",
+    fontSize: moderateScale(12, 0.1),
   },
   loginBtn: {
     width: "100%",
-    height: designHeightToPx(70, 0.1),
+    height: moderateScale(50, 0.1),
     backgroundColor: "#46b6fd",
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 10,
-    marginBottom: designHeightToPx(70),
+    marginVertical: moderateScale(20, 0.1),
   },
   loginBtnLabel: {
     fontSize: moderateScale(16, 0.1),
-    fontWeight: "600",
     color: "white",
+    fontWeight: "600",
   },
   signupDesc: {
     fontSize: moderateScale(14, 0.1),
-    fontWeight: "400",
-    marginBottom: moderateScale(10, 0.1),
     color: "#00000040",
   },
   signupLabel: {
     fontSize: moderateScale(14, 0.1),
+    color: "#000",
     fontWeight: "600",
-    color: "#000000",
-    marginBottom: moderateScale(10, 0.1),
+    marginTop: moderateScale(5, 0.1),
   },
 });
 
