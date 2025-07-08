@@ -222,6 +222,8 @@ function Feed({
 
           return (
             <TouchableOpacity
+              disabled={item.deniedBet}
+
               onPress={() => {
                 const isOwner = item.user.uid === currentUser.uid;
                 const params = {
@@ -296,11 +298,15 @@ function Feed({
                       />
                     </TouchableOpacity>
                   )}
-{item.Winner && (
+{item.deniedBet ? (
+  <View style={styles.deniedBadge}>
+    <Text style={styles.deniedBadgeText}>Bet Denied</Text>
+  </View>
+) : item.Winner ? (
   <View style={styles.winnerBadge}>
     <Text style={styles.winnerBadgeText}>Winner: {item.Winner}</Text>
   </View>
-)}
+) : null}
                   {/* Wager */}
                   <View style={{ flexDirection: "row", marginTop: 12 }}>
                     <Ionicons name="cash-outline" color="green" size={20} />
@@ -401,6 +407,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#6CB4EE",
   },
+  deniedBadge: {
+  backgroundColor: 'red',
+  alignSelf: 'flex-start',
+  paddingHorizontal: moderateScale(10, 0.1),
+  paddingVertical: moderateScale(4, 0.1),
+  borderRadius: moderateScale(12, 0.1),
+  marginBottom: moderateScale(8, 0.1),
+},
+deniedBadgeText: {
+  color: 'white',
+  fontWeight: '600',
+  fontSize: moderateScale(12, 0.1),
+},
   trendingWrapper: {
     width: "100%",
     backgroundColor: "#6CB4EE",
