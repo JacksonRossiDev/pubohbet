@@ -266,7 +266,7 @@ useEffect(() => {
 const countdown = countdownTimers[item.id];
           return (
             <TouchableOpacity
-              disabled={item.deniedBet}
+  disabled={item.deniedBet || item.betExpired}
 
               onPress={() => {
                 const isOwner = item.user.uid === currentUser.uid;
@@ -343,24 +343,28 @@ const countdown = countdownTimers[item.id];
                     </TouchableOpacity>
                   )}
 {item.deniedBet ? (
-            <View style={styles.deniedBadge}>
-              <Text style={styles.deniedBadgeText}>Bet Denied</Text>
-            </View>
-          ) : isExpired ? (
-            <View style={styles.expiredBadge}>
-              <Text style={styles.expiredBadgeText}>Bet Expired</Text>
-            </View>
-          ) : null}
+  <View style={styles.deniedBadge}>
+    <Text style={styles.deniedBadgeText}>Bet Denied</Text>
+  </View>
+) : isExpired ? (
+  <View style={styles.expiredBadge}>
+    <Text style={styles.expiredBadgeText}>Bet Expired</Text>
+  </View>
+) : item.Winner ? (
+  <View style={styles.winnerBadge}>
+    <Text style={styles.winnerBadgeText}>Winner: {item.Winner}</Text>
+  </View>
+) : null}
 
           {/* Timer (only if not expired) */}
-{!item.handsShaken && 
-         !item.deniedBet && 
-         !item.betExpired && 
-         countdown && (
-          <View style={styles.timerWrapper}>
-            <Text style={styles.timerText}>⏳ {countdown}</Text>
-          </View>
-        )}
+{!item.betComplete &&
+ !item.deniedBet &&
+ !item.betExpired &&
+ countdown && (
+  <View style={styles.timerWrapper}>
+    <Text style={styles.timerText}>⏳ {countdown}</Text>
+  </View>
+)}
                   <View style={{ flexDirection: "row", marginTop: 12 }}>
                     <Ionicons name="cash-outline" color="green" size={20} />
                     <Text style={styles.paidWagerCaption}>
