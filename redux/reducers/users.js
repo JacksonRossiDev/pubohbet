@@ -13,6 +13,10 @@ const initialState = {
   users: [],
   feed: [],
   usersFollowingLoaded: 0,
+  // ← add this slice:
+  usersFollowingPosts: {
+    byUid: {}           // each UID will map to { posts: [], lastVisible: … }
+  }
 };
 
 export const users = (state = initialState, action) => {
@@ -22,12 +26,32 @@ export const users = (state = initialState, action) => {
         ...state,
         users: [...state.users, action.user],
       };
-    case USERS_POSTS_STATE_CHANGE:
+    case USERS_POSTS_STATE_CHANGE: {
+      const { uid, posts, lastVisible } = action;
+      const existing = state.usersFollowingPosts.byUid[uid] || {
+        posts: [],
+        lastVisible: null
+      };
+      // first page? replace, otherwise append
+      const isInitial = !existing.lastVisible;
+      const newList   = isInitial
+        ? posts
+        : [...existing.posts, ...posts];
+
       return {
         ...state,
-        usersFollowingLoaded: state.usersFollowingLoaded + 1,
-        feed: [...state.feed, ...action.posts],
+        usersFollowingLoaded: state.usersFollowingLoaded + (isInitial ? 1 : 0),
+        feed: isInitial
+          ? [...state.feed, ...posts]  // optional: keep old feed behavior
+          : state.feed,
+        usersFollowingPosts: {
+          byUid: {
+            ...state.usersFollowingPosts.byUid,
+            [uid]: { posts: newList, lastVisible }
+          }
+        }
       };
+    }
     case USERS_LIKES_STATE_CHANGE:
       return {
         ...state,

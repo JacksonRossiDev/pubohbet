@@ -1,4 +1,5 @@
 // Register.js
+// @ts-nocheck
 import React, { Component } from "react";
 import {
   TextInput,
@@ -8,14 +9,19 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  Image,
   Alert,
 } from "react-native";
 import { moderateScale } from "react-native-size-matters";
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
+import "firebase/compat/storage";
 import { SafeAreaView, withSafeAreaInsets } from "react-native-safe-area-context";
 import { designHeightToPx } from "../utils/dimensions";
+import * as ImagePicker from "expo-image-picker";
+import { connect } from "react-redux";
+import { fetchUser } from "../../redux/actions";
 
 class Register extends Component {
   constructor(props) {
@@ -24,55 +30,88 @@ class Register extends Component {
       name: "",
       email: "",
       password: "",
-      referralCode: "",    // ← add this
+      referralCode: "",
+      photoUri: null,
     };
   }
 
-onSignUp = async () => {
-  const { name, email, password, referralCode } = this.state;
-  const db = firebase.firestore();
+  // ask permission & pick from the library
+  pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission required", "We need access to your photos.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (result.canceled) return;
+    const asset = result.assets && result.assets[0];
+    if (asset?.uri) {
+      this.setState({ photoUri: asset.uri });
+    }
+  };
 
-  try {
-    // 1️⃣ Create the Auth user
-    const result = await firebase
-      .auth()
-      .createUserWithEmailAndPassword(email.trim(), password);
-    const uid = result.user.uid;
-    console.log("✅ Created auth user:", uid);
+  onSignUp = async () => {
+    const { name, email, password, referralCode, photoUri } = this.state;
+    const db = firebase.firestore();
 
-    // 2️⃣ Resolve the referral code, if provided
-    let referredBy = null;
-    const code = referralCode.trim();
-    if (code) {
-      const codeDoc = await db.collection("codes").doc(code).get();
-      if (codeDoc.exists) {
-        referredBy = codeDoc.data().owner;
-        console.log(`🏷️  Referral code "${code}" → UID:`, referredBy);
-      } else {
-        Alert.alert("Invalid Code", "That referral code doesn’t exist.");
-        return; // abort on bad code
-      }
+    if (!photoUri) {
+      return Alert.alert(
+        "Profile Photo Required",
+        "Please select a profile photo before registering."
+      );
     }
 
-    // 3️⃣ Write the user profile document
-    await db.collection("users").doc(uid).set({
-      name: name.trim(),
-      email: email.trim(),
-      creditBalance: 500,
-      referredBy,
-    });
-    console.log("📄 Wrote user doc at users/" + uid);
+    try {
+      // 1) Auth
+      const result = await firebase
+        .auth()
+        .createUserWithEmailAndPassword(email.trim(), password);
+      const uid = result.user.uid;
 
-    // 4️⃣ Navigate to the Home feed
-  } catch (err) {
-    console.error("🚨 Signup error:", err);
-    Alert.alert("Signup failed", err.message);
-  }
-};
+      // 2) Referral
+      let referredBy = null;
+      const code = referralCode.trim();
+      if (code) {
+        const codeDoc = await db.collection("codes").doc(code).get();
+        if (codeDoc.exists) {
+          referredBy = codeDoc.data().owner;
+        } else {
+          return Alert.alert("Invalid Code", "That referral code doesn’t exist.");
+        }
+      }
+
+      // 3) Upload photo
+      const resp = await fetch(photoUri);
+      const blob = await resp.blob();
+      const storageRef = firebase.storage().ref().child(`profile/${uid}`);
+      await storageRef.put(blob);
+      const ppUrl = await storageRef.getDownloadURL();
+
+      // 4) Write user doc
+      await db.collection("users").doc(uid).set({
+        name:          name.trim(),
+        email:         email.trim(),
+        creditBalance: 500,
+        referredBy,
+        ppUrl,
+      });
+
+      // 5) Refresh Redux user
+      await this.props.fetchUser();
+
+      // Auth listener in App.js will switch to Home
+    } catch (err) {
+      console.error("🚨 Signup error:", err);
+      Alert.alert("Signup failed", err.message);
+    }
+  };
 
   render() {
     const { insets } = this.props;
-    const { name, email, password, referralCode } = this.state;
+    const { name, email, password, referralCode, photoUri } = this.state;
 
     return (
       <ImageBackground
@@ -150,11 +189,33 @@ onSignUp = async () => {
                     <Text style={styles.inputLabel}>Referral Code</Text>
                   </View>
 
+                  {/* Profile Photo Picker */}
+                  <View style={styles.wrapper}>
+                    <TouchableOpacity
+                      style={styles.photoBtn}
+                      onPress={this.pickImage}
+                    >
+                      <Text style={styles.photoBtnText}>
+                        {photoUri ? "Change Profile Photo" : "Select Profile Photo"}
+                      </Text>
+                    </TouchableOpacity>
+                    {photoUri && (
+                      <Image
+                        source={{ uri: photoUri }}
+                        style={styles.photoPreview}
+                      />
+                    )}
+                  </View>
+
                   {/* Register Button */}
                   <TouchableOpacity
                     activeOpacity={0.8}
-                    style={styles.loginBtn}
+                    style={[
+                      styles.loginBtn,
+                      { opacity: photoUri ? 1 : 0.5 }
+                    ]}
                     onPress={this.onSignUp}
+                    disabled={!photoUri}
                   >
                     <Text style={styles.loginBtnLabel}>Register</Text>
                   </TouchableOpacity>
@@ -202,6 +263,22 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: moderateScale(15, 0.1),
   },
+  photoBtn: {
+    width: "100%",
+    backgroundColor: "#46b6fd",
+    paddingVertical: moderateScale(12, 0.1),
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: moderateScale(12, 0.1),
+  },
+  photoBtnText: { color: "white", fontWeight: "600" },
+  photoPreview: {
+    width: moderateScale(80, 0.1),
+    height: moderateScale(80, 0.1),
+    borderRadius: moderateScale(40, 0.1),
+    marginTop: moderateScale(8, 0.1),
+    alignSelf: "center",
+  },
   input: {
     width: "100%",
     borderColor: "#E0E0E0",
@@ -235,10 +312,7 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "600",
   },
-  signupDesc: {
-    fontSize: moderateScale(14, 0.1),
-    color: "#00000040",
-  },
+  signupDesc: { fontSize: moderateScale(14, 0.1), color: "#00000040" },
   signupLabel: {
     fontSize: moderateScale(14, 0.1),
     color: "#000",
@@ -247,4 +321,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export default withSafeAreaInsets(Register);
+export default connect(
+  null,
+  { fetchUser }
+)(withSafeAreaInsets(Register));

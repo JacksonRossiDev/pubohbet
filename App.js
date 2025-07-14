@@ -39,36 +39,34 @@ const firebaseConfig = {
   measurementId: "G-9K19GV4EZ2"
 };
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-
 export default class App extends Component {
   state = {
-    showSplash: true,    // ← show splash video first
-    loaded:     false,   // ← firebase auth loaded
+    showSplash: true,
+    loaded:     false,
     loggedIn:   false,
   };
 
   async componentDidMount() {
-    // 1. Listen for auth:
-    firebase.auth().onAuthStateChanged((user) => {
+    this.unsubscribe = firebase.auth().onAuthStateChanged((user) => {
       this.setState({ 
         loggedIn: !!user,
         loaded:   true,
       });
     });
-    // 2. Fallback: hide splash after max duration
+    // fallback splash timeout
     this.splashTimer = setTimeout(() => {
       this.setState({ showSplash: false });
-    }, 5000); // 5s fallback
+    }, 5000);
   }
-
   componentWillUnmount() {
-    this.splashTimer && clearTimeout(this.splashTimer);
+    this.unsubscribe && this.unsubscribe();
+    clearTimeout(this.splashTimer);
   }
 
   render() {
     const { showSplash, loaded, loggedIn } = this.state;
 
-    // 1) Splash video screen
+    // 1) Splash
     if (showSplash) {
       return (
         <View style={styles.splashContainer}>
@@ -79,17 +77,14 @@ export default class App extends Component {
             resizeMode="cover"
             shouldPlay
             onPlaybackStatusUpdate={status => {
-              if (status.didJustFinish) {
-                // video finished → hide splash
-                this.setState({ showSplash: false });
-              }
+              if (status.didJustFinish) this.setState({ showSplash: false });
             }}
           />
         </View>
       );
     }
 
-    // 2) While auth is initializing
+    // 2) Waiting for auth
     if (!loaded) {
       return (
         <View style={styles.center}>
@@ -98,41 +93,38 @@ export default class App extends Component {
       );
     }
 
-    // 3) Not logged in → auth stack
-    if (!loggedIn) {
-      return (
-        <NavigationContainer>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Login"    component={LoginScreen} />
-          
-            <Stack.Screen name="Register" component={RegisterScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      );
-    }
-
-    // 4) Logged in → main app
+    // 3) Wrap ALL your navigation in the Provider
     return (
       <Provider store={store}>
-        <NavigationContainer theme={{ 
+        <NavigationContainer theme={{
           ...DefaultTheme,
-          colors: { secondaryContainer: "transparent" },
+          colors: { secondaryContainer: "transparent" }
         }}>
-          <Stack.Navigator initialRouteName="Main" screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Home"             component={MainScreen} />
-            <Stack.Screen name="Add"              component={AddScreen} />
-            <Stack.Screen name="Save"             component={SaveScreen} />
-            <Stack.Screen name="Save2"            component={SaveScreen2} />
-            <Stack.Screen name="PartyScreen"      component={PartyScreen} />
-            <Stack.Screen name="PrePartyScreen"   component={PrePartyScreen} />
-            <Stack.Screen name="Comment"          component={CommentScreen} />
-            <Stack.Screen name="Withdraw"       component={WithdrawScreen} />
-            <Stack.Screen
-  name="CConfirmedScreen"
-  component={CConfirmedScreen}
-  options={{ headerShown: false }}
-/>
-            <Stack.Screen name="Search"          component={Search} />
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            { !loggedIn ? (
+              // Auth flow
+              <>
+                <Stack.Screen name="Login"    component={LoginScreen} />
+                <Stack.Screen name="Register" component={RegisterScreen} />
+              </>
+            ) : (
+              // Main app
+              <>
+                <Stack.Screen name="Home"           component={MainScreen} />
+                <Stack.Screen name="Add"            component={AddScreen} />
+                <Stack.Screen name="Save"           component={SaveScreen} />
+                <Stack.Screen name="Save2"          component={SaveScreen2} />
+                <Stack.Screen name="PartyScreen"    component={PartyScreen} />
+                <Stack.Screen name="PrePartyScreen" component={PrePartyScreen} />
+                <Stack.Screen name="Comment"        component={CommentScreen} />
+                <Stack.Screen name="Withdraw"       component={WithdrawScreen} />
+                <Stack.Screen 
+                  name="CConfirmedScreen" 
+                  component={CConfirmedScreen} 
+                />
+                <Stack.Screen name="Search" component={Search} />
+              </>
+            )}
           </Stack.Navigator>
         </NavigationContainer>
       </Provider>

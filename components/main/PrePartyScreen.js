@@ -7,6 +7,8 @@ import {
   Image,
   SafeAreaView,
   StyleSheet,
+    Modal,
+  TouchableOpacity,
 } from "react-native";
 import { connect } from "react-redux";
 import firebase from "firebase/compat/app";
@@ -25,6 +27,7 @@ const PrePartyScreen = ({ currentUser, route, navigation }) => {
   } = route.params;
 
   const [self, setSelf] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     const unsub = firebase
@@ -38,6 +41,11 @@ const PrePartyScreen = ({ currentUser, route, navigation }) => {
   const isRisker = currentUser.uid === riskerUid;
 
   const gotoDeal = async () => {
+        // if their balance is too low, show modal instead of proceeding
+    if ((self?.creditBalance ?? 0) < wager) {
+      setModalVisible(true);
+      return;
+    }
     await firebase
       .firestore()
       .collection("posts")
@@ -59,6 +67,31 @@ const PrePartyScreen = ({ currentUser, route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.safe}>
+            {/* Balance Too Low Modal */}
+      <Modal
+        transparent
+        animationType="slide"
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Insufficient Balance</Text>
+            <Text style={styles.modalMessage}>
+              You don’t have enough credits to accept this bet.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setModalVisible(false);
+                navigation.navigate("Withdraw");
+              }}
+            >
+              <Text style={styles.modalButtonText}>Buy More Credits</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <View style={styles.container}>
         {/* 1) Title */}
         <Text style={styles.title}>Pending Agreement</Text>
@@ -161,6 +194,41 @@ const styles = StyleSheet.create({
     height: moderateScale(175, 0.1),
     marginTop: moderateScale(60, 0.1),
     alignSelf: 'center',
+  },
+    // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: moderateScale(8, 0.1),
+    padding: moderateScale(20, 0.1),
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: moderateScale(20, 0.1),
+    fontWeight: '700',
+    marginBottom: moderateScale(10, 0.1),
+  },
+  modalMessage: {
+    fontSize: moderateScale(14, 0.1),
+    textAlign: 'center',
+    marginBottom: moderateScale(20, 0.1),
+  },
+  modalButton: {
+    backgroundColor: '#6CB4EE',
+    paddingVertical: moderateScale(10, 0.1),
+    paddingHorizontal: moderateScale(20, 0.1),
+    borderRadius: moderateScale(4, 0.1),
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: moderateScale(14, 0.1),
   },
 });
 

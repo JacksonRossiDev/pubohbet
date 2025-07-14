@@ -1,163 +1,205 @@
+// Feed.js
 // @ts-nocheck
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
+  SafeAreaView,
+  FlatList,
+  ActivityIndicator,
   View,
   Text,
   Image,
-  FlatList,
   TouchableOpacity,
-  ActivityIndicator,
-  SafeAreaView,
   StyleSheet,
 } from "react-native";
-import ImageViewing from "react-native-image-viewing";
+import { moderateScale } from "react-native-size-matters";  // ← add this
 import firebase from "firebase/compat/app";
 import "firebase/firestore";
-import { connect, useDispatch } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { fetchUser, fetchUserFollowing } from "../../redux/actions";
 import moment from "moment";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import CustomHeader from "../reusable/CustomHeader";
-import { moderateScale } from "react-native-size-matters";
-import {
-  fetchUser,
-  fetchUserFollowing,
-  fetchUserPosts,
-} from "../../redux/actions";
 import StepIndicator from "react-native-step-indicator";
-
 const STEP_LABELS = ["Initiated", "Accepted", "Complete", "Paid"];
+// Pagination constant
 const POSTS_PER_PAGE = 10;
 
-function Feed({
-  currentUser,
-  userPosts = [],
-  feed = [],
-  usersFollowingLoaded,
-  navigation,
-}) {
-  const dispatch = useDispatch();
+// Your helper to chunk arrays:
+const chunk = (arr, size = 10) => {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+};
+// how many to fetch per page
 
-  // all posts array and paginated visible posts
-  const [allPosts, setAllPosts] = useState([]);
-  const [visiblePosts, setVisiblePosts] = useState([]);
-  const [lockedPosts, setLockedPosts] = useState([]);
-
-  // pagination & loading flags
-  const [page, setPage] = useState(1);
-  const [loadingInitial, setLoadingInitial] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  // image viewer state
-  const [isViewerVisible, setIsViewerVisible] = useState(false);
-  const [selectedImageUri, setSelectedImageUri] = useState(null);
-
-  // load Redux data on mount
+export default function Feed({ navigation }) {
+  const dispatch    = useDispatch();
+  const currentUser = useSelector(s => s.userState.currentUser);
+  const userPosts   = useSelector(s => s.userState.posts        || []);
+  const feed        = useSelector(s => s.usersState.feed        || []);
+  const following   = useSelector(s => s.userState.following    || []);
+const [isViewerVisible, setIsViewerVisible]     = useState(false);
+const [selectedImageUri, setSelectedImageUri]   = useState(null);
+// countdown timers (7-day expiry)
+const [countdownTimers, setCountdownTimers]     = useState({});
+  // 🚀 load user & following info on mount
   useEffect(() => {
     dispatch(fetchUser());
     dispatch(fetchUserFollowing());
-    dispatch(fetchUserPosts());
   }, [dispatch]);
+  const [posts, setPosts]           = useState([]);   // all loaded so far
+  const [visiblePosts, setVisible]  = useState([]);   // for FlatList
+  const [lastDoc, setLastDoc]       = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  // combine, dedupe, sort whenever feed or userPosts change
-  useEffect(() => {
-    const mine = userPosts.map((p) => ({ ...p, user: currentUser }));
-    const combined = [...mine, ...feed];
-    const uniqueMap = combined.reduce((acc, item) => {
-      acc[item.id] = item;
-      return acc;
-    }, {});
-    const sorted = Object.values(uniqueMap).sort(
-      (a, b) => b.creation.seconds - a.creation.seconds
-    );
-    setAllPosts(sorted);
-    setPage(1);
-  }, [feed, userPosts, currentUser]);
-
-  // fetch comment counts helper
-  const fetchCommentCounts = async (postsArray) =>
-    Promise.all(
-      postsArray.map(async (post) => {
-        try {
-          const snap = await firebase
-            .firestore()
-            .collection("posts")
-            .doc(post.user.uid)
-            .collection("userPosts")
-            .doc(post.id)
-            .collection("comments")
-            .get();
-          return { ...post, commentsCount: snap.size };
-        } catch {
-          return { ...post, commentsCount: 0 };
-        }
-      })
-    );
-
-  // load first page of posts + their comment counts
-  useEffect(() => {
-    if (!allPosts.length) {
-      setLoadingInitial(false);
-      return;
+  // Helper: split array into chunks of max 10 (for Firestore 'in' queries)
+  const chunk = (arr, size=10) => {
+    const chunks = [];
+    for (let i = 0; i < arr.length; i += size) {
+      chunks.push(arr.slice(i, i + size));
     }
-    (async () => {
+    return chunks;
+  };
+// inside Feed(), before your first useEffect:
+
+// fetch comment counts for an array of posts
+const fetchCommentCounts = async (postsArray) => {
+  return Promise.all(
+    postsArray.map(async (post) => {
       try {
-        const firstSlice = allPosts.slice(0, POSTS_PER_PAGE);
-        const withCounts = await fetchCommentCounts(firstSlice);
-        setVisiblePosts(withCounts);
-      } catch (e) {
-        console.error("Error loading initial posts:", e);
-      } finally {
-        setLoadingInitial(false);
+        const snap = await firebase
+          .firestore()
+          .collection("posts")
+          .doc(post.user.uid)
+          .collection("userPosts")
+          .doc(post.id)
+          .collection("comments")
+          .get();
+        return { ...post, commentsCount: snap.size };
+      } catch {
+        return { ...post, commentsCount: 0 };
       }
-    })();
-  }, [allPosts]);
-  
+    })
+  );
+};
+  // Load the first page
+useEffect(() => {
+  if (!currentUser) return;
 
-  // infinite scroll handler
-  const handleLoadMore = async () => {
-    if (loadingMore) return;
-    if (visiblePosts.length >= allPosts.length) return;
+  // 1) stamp your own posts
+  const mine = userPosts.map(p => ({ ...p, user: currentUser }));
 
+  // 2) combine with the feed Redux already fetched
+  const combined = [...mine, ...feed];
+
+  // 3) dedupe purely by post.id
+  const mapById = new Map();
+  combined.forEach(post => {
+    if (!mapById.has(post.id)) {
+      mapById.set(post.id, post);
+    }
+  });
+
+  // 4) sort newest-first
+  const deduped = Array.from(mapById.values()).sort(
+    (a, b) => b.creation.seconds - a.creation.seconds
+  );
+
+  // 5) paginate & load first page
+setPosts(deduped);
+
+(async () => {
+  const firstSlice = deduped.slice(0, POSTS_PER_PAGE);
+  const withCounts = await fetchCommentCounts(firstSlice);
+  setVisible(withCounts);
+  setLoading(false);
+})();
+}, [currentUser, userPosts, feed]);
+
+  // Load next page
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !lastDoc) return;
     setLoadingMore(true);
-    const start = page * POSTS_PER_PAGE;
-    const end = start + POSTS_PER_PAGE;
-    const nextSlice = allPosts.slice(start, end);
-
     try {
-      const nextWithCounts = await fetchCommentCounts(nextSlice);
-      setVisiblePosts((prev) => [...prev, ...nextWithCounts]);
-      setPage((prev) => prev + 1);
-    } catch (e) {
-      console.error("Error loading more posts:", e);
+      const uids = [...following, currentUser.uid];
+      const batches = chunk(uids);
+
+      const snaps = await Promise.all(
+        batches.map((batch) =>
+          firebase
+            .firestore()
+            .collectionGroup("userPosts")
+            .where("uid", "in", batch)
+            .orderBy("creation", "desc")
+            .startAfter(lastDoc.creation)
+            .limit(POSTS_PER_PAGE)
+            .get()
+        )
+      );
+
+      let docs = snaps.flatMap((snap) => snap.docs.map((d) => ({
+        id:   d.id,
+        ...d.data(),
+        creation: d.data().creation,
+        user: {
+          uid:   d.data().uid,
+          name:  d.data().name,
+          ppUrl: d.data().ppUrl,
+        }
+      })));
+
+      // filter out already‐loaded
+      const existingIds = new Set(posts.map((p) => p.id));
+      docs = docs.filter((p) => !existingIds.has(p.id))
+                 .sort((a, b) => b.creation.seconds - a.creation.seconds);
+
+      setPosts((prev) => [...prev, ...docs]);
+      setVisible((prev) => [...prev, ...docs]);
+      if (docs.length) setLastDoc(docs[docs.length - 1]);
     } finally {
       setLoadingMore(false);
     }
-  };
+  }, [currentUser, following, lastDoc, loadingMore, posts]);
+useEffect(() => {
+  const interval = setInterval(() => {
+    const newTimers = {};
 
-  // like/dislike helpers
-  const onLikePress = (uid, pid, col) =>
-    firebase
-      .firestore()
-      .collection("posts")
-      .doc(uid)
-      .collection("userPosts")
-      .doc(pid)
-      .collection(col)
-      .doc(firebase.auth().currentUser.uid)
-      .set({});
-  const onDislikePress = (uid, pid, col) =>
-    firebase
-      .firestore()
-      .collection("posts")
-      .doc(uid)
-      .collection("userPosts")
-      .doc(pid)
-      .collection(col)
-      .doc(firebase.auth().currentUser.uid)
-      .delete();
+    visiblePosts.forEach((item) => {
+      // how many days this bet lasts (fallback to 7)
+      const days   = item.durationDays ?? 7;
+      const startMs = item.creation.seconds * 1000;
+      const endMs   = startMs + days * 24 * 60 * 60 * 1000;
+      const diff    = endMs - Date.now();
 
-  // show spinner until initial load + following data ready
-  if (loadingInitial ) {
+      if (diff > 0) {
+        // compute days / hours / minutes / seconds
+        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const m = Math.floor((diff / (1000 * 60)) % 60);
+        const s = Math.floor((diff / 1000) % 60);
+        newTimers[item.id] = `${d}d ${h}h ${m}m ${s}s`;
+      } else if (!item.betExpired) {
+        // once expired, mark in Firestore so UI disables it
+        firebase
+          .firestore()
+          .collection("posts")
+          .doc(item.user.uid)
+          .collection("userPosts")
+          .doc(item.id)
+          .update({ betExpired: true })
+          .catch(console.warn);
+      }
+    });
+
+    setCountdownTimers(newTimers);
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [visiblePosts]);
+  if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, justifyContent: "center" }}>
         <ActivityIndicator size="large" />
@@ -176,7 +218,7 @@ function Feed({
         data={visiblePosts}
         keyExtractor={(item) => item.id}
         initialNumToRender={POSTS_PER_PAGE}
-        onEndReached={handleLoadMore}
+        onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={() =>
           loadingMore ? <ActivityIndicator style={{ margin: 12 }} /> : null
@@ -213,13 +255,15 @@ function Feed({
           </>
         )}
         renderItem={({ item }) => {
+            const isExpired = item.betExpired;
+
           const currentPhase = item.betComplete
             ? 4
             : item.handsShaken
             ? 2
             : 1;
           const isOwner = item.user.uid === currentUser.uid;
-
+const countdown = countdownTimers[item.id];
           return (
             <TouchableOpacity
               disabled={item.deniedBet}
@@ -299,15 +343,24 @@ function Feed({
                     </TouchableOpacity>
                   )}
 {item.deniedBet ? (
-  <View style={styles.deniedBadge}>
-    <Text style={styles.deniedBadgeText}>Bet Denied</Text>
-  </View>
-) : item.Winner ? (
-  <View style={styles.winnerBadge}>
-    <Text style={styles.winnerBadgeText}>Winner: {item.Winner}</Text>
-  </View>
-) : null}
-                  {/* Wager */}
+            <View style={styles.deniedBadge}>
+              <Text style={styles.deniedBadgeText}>Bet Denied</Text>
+            </View>
+          ) : isExpired ? (
+            <View style={styles.expiredBadge}>
+              <Text style={styles.expiredBadgeText}>Bet Expired</Text>
+            </View>
+          ) : null}
+
+          {/* Timer (only if not expired) */}
+{!item.handsShaken && 
+         !item.deniedBet && 
+         !item.betExpired && 
+         countdown && (
+          <View style={styles.timerWrapper}>
+            <Text style={styles.timerText}>⏳ {countdown}</Text>
+          </View>
+        )}
                   <View style={{ flexDirection: "row", marginTop: 12 }}>
                     <Ionicons name="cash-outline" color="green" size={20} />
                     <Text style={styles.paidWagerCaption}>
@@ -546,6 +599,32 @@ winnerBadgeText: {
     justifyContent: "center",
     alignItems: "center",
   },
+  expiredBadge: {
+  backgroundColor: 'red',
+  alignSelf: 'flex-start',
+  paddingHorizontal: moderateScale(10, 0.1),
+  paddingVertical: moderateScale(4, 0.1),
+  borderRadius: moderateScale(12, 0.1),
+  marginBottom: moderateScale(8, 0.1),
+},
+expiredBadgeText: {
+  color: 'white',
+  fontWeight: '600',
+  fontSize: moderateScale(12, 0.1),
+},
+  timerWrapper: {
+  backgroundColor: "#FFE4B5",
+  paddingVertical: moderateScale(4, 0.1),
+  paddingHorizontal: moderateScale(10, 0.1),
+  borderRadius: moderateScale(10, 0.1),
+  alignSelf: 'flex-start',
+  marginBottom: moderateScale(8, 0.1),
+},
+timerText: {
+  color: "#333",
+  fontWeight: "600",
+  fontSize: moderateScale(12, 0.1),
+},
   postHeaderImage: {
     width: moderateScale(40, 0.1),
     height: moderateScale(40, 0.1),
@@ -603,11 +682,3 @@ const stepIndicatorStyles = {
   currentStepLabelColor: "#000",
 };
 
-const mapStateToProps = (store) => ({
-  currentUser: store.userState.currentUser,
-  userPosts: store.userState.posts,
-  feed: store.usersState.feed,
-  usersFollowingLoaded: store.usersState.usersFollowingLoaded,
-});
-
-export default connect(mapStateToProps)(Feed);

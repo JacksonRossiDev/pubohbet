@@ -15,7 +15,7 @@ import "firebase/compat/storage";
 import { useDispatch } from "react-redux";
 import { fetchUserPosts } from "../../redux/actions";
 import { moderateScale } from "react-native-size-matters";
-
+import { Picker } from "@react-native-picker/picker";
 require("firebase/firestore");
 
 export default function Save(props) {
@@ -24,7 +24,7 @@ export default function Save(props) {
   const [wager, setWager] = useState("");
   const [status, setStatus] = useState("");
   const [userRisker, setUserRisker] = useState(null);
-
+const [duration, setDuration] = useState(7);
   const uploadImage = async () => {
     const uri = props.route.params?.image;
     if (uri) {
@@ -59,8 +59,10 @@ export default function Save(props) {
         
         status,
         caption,
+  durationDays: duration,       // ← move this out, at top level
 
         userRisker: {
+           durationDays: duration,       // ← add this
           uid:            userRisker.uid,
           name:           userRisker.name,
           email:          userRisker.email,
@@ -130,6 +132,27 @@ useEffect(() => {
           />
         </View>
       </View>
+
+ <View style={styles.durationContainer}>
+   <Text style={styles.durationLabel}>Bet Duration</Text>
+   <View style={styles.pickerWrapper}>
+     <Picker
+       selectedValue={duration}
+       onValueChange={(val) => setDuration(val)}
+       style={styles.picker}
+               mode="dropdown"               // ← make it a dropdown overlay
+
+     >
+       <Picker.Item label="1 day" value={1} />
+       <Picker.Item label="2 days" value={2} />
+       <Picker.Item label="3 days" value={3} />
+       <Picker.Item label="4 days" value={4} />
+       <Picker.Item label="5 days" value={5} />
+       <Picker.Item label="6 days" value={6} />
+       <Picker.Item label="7 days" value={7} />
+     </Picker>
+   </View>
+ </View>
 
       <TouchableOpacity style={styles.postButton} onPress={uploadImage} activeOpacity={0.9}>
         <Text style={styles.postButtonText}>Post</Text>
@@ -203,6 +226,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
     paddingVertical: 8,
+  },
+  durationContainer: {
+    width: "100%",
+    marginBottom: 20,
+        zIndex: 1000, 
+
+  },
+  durationLabel: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 8,
+    fontWeight: "500",
+  },
+  pickerWrapper: {
+    backgroundColor: "#F5F5F5",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    zIndex: 1000
+  },
+  picker: {
+    width: "100%",
+    
   },
   postButton: {
     width: "100%",
