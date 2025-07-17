@@ -1,5 +1,7 @@
 // Feed.js
 // @ts-nocheck
+// Feed.js
+// @ts-nocheck
 import React, { useState, useEffect, useCallback } from "react";
 import {
   SafeAreaView,
@@ -11,7 +13,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import { moderateScale } from "react-native-size-matters";  // ← add this
+import { moderateScale } from "react-native-size-matters";
 import firebase from "firebase/compat/app";
 import "firebase/firestore";
 import { useSelector, useDispatch } from "react-redux";
@@ -20,11 +22,11 @@ import moment from "moment";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import CustomHeader from "../reusable/CustomHeader";
 import StepIndicator from "react-native-step-indicator";
+
 const STEP_LABELS = ["Initiated", "Accepted", "Complete", "Paid"];
-// Pagination constant
 const POSTS_PER_PAGE = 10;
 
-// Your helper to chunk arrays:
+// helper to chunk your UIDs into batches of ≤10
 const chunk = (arr, size = 10) => {
   const chunks = [];
   for (let i = 0; i < arr.length; i += size) {
@@ -32,99 +34,134 @@ const chunk = (arr, size = 10) => {
   }
   return chunks;
 };
-// how many to fetch per page
 
 export default function Feed({ navigation }) {
   const dispatch    = useDispatch();
   const currentUser = useSelector(s => s.userState.currentUser);
-  const userPosts   = useSelector(s => s.userState.posts        || []);
-  const feed        = useSelector(s => s.usersState.feed        || []);
   const following   = useSelector(s => s.userState.following    || []);
-const [isViewerVisible, setIsViewerVisible]     = useState(false);
-const [selectedImageUri, setSelectedImageUri]   = useState(null);
-// countdown timers (7-day expiry)
-const [countdownTimers, setCountdownTimers]     = useState({});
+
+  const [posts, setPosts]          = useState([]);   // all loaded so far
+  const [visiblePosts, setVisible] = useState([]);   // for FlatList
+  const [loading, setLoading]      = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastDoc, setLastDoc]      = useState(null);
+
+  const [isViewerVisible, setIsViewerVisible]   = useState(false);
+  const [selectedImageUri, setSelectedImageUri] = useState(null);
+  const [countdownTimers, setCountdownTimers]   = useState({});
+
   // 🚀 load user & following info on mount
   useEffect(() => {
     dispatch(fetchUser());
     dispatch(fetchUserFollowing());
   }, [dispatch]);
-  const [posts, setPosts]           = useState([]);   // all loaded so far
-  const [visiblePosts, setVisible]  = useState([]);   // for FlatList
-  const [lastDoc, setLastDoc]       = useState(null);
-  const [loading, setLoading]       = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
 
-  // Helper: split array into chunks of max 10 (for Firestore 'in' queries)
-  const chunk = (arr, size=10) => {
-    const chunks = [];
-    for (let i = 0; i < arr.length; i += size) {
-      chunks.push(arr.slice(i, i + size));
-    }
-    return chunks;
+  // fetch comment counts for an array of posts
+  const fetchCommentCounts = async (postsArray) => {
+    return Promise.all(
+      postsArray.map(async (post) => {
+        try {
+          const snap = await firebase
+            .firestore()
+            .collection("posts")
+            .doc(post.user.uid)
+            .collection("userPosts")
+            .doc(post.id)
+            .collection("comments")
+            .get();
+          return { ...post, commentsCount: snap.size };
+        } catch {
+          return { ...post, commentsCount: 0 };
+        }
+      })
+    );
   };
-// inside Feed(), before your first useEffect:
 
-// fetch comment counts for an array of posts
-const fetchCommentCounts = async (postsArray) => {
-  return Promise.all(
-    postsArray.map(async (post) => {
-      try {
-        const snap = await firebase
-          .firestore()
-          .collection("posts")
-          .doc(post.user.uid)
-          .collection("userPosts")
-          .doc(post.id)
-          .collection("comments")
-          .get();
-        return { ...post, commentsCount: snap.size };
-      } catch {
-        return { ...post, commentsCount: 0 };
-      }
-    })
-  );
-};
-  // Load the first page
+  // ── REAL-TIME LISTENER ─────────────────────────────────────────────────────
 useEffect(() => {
   if (!currentUser) return;
+  if (following === null) return;
 
-  // 1) stamp your own posts
-  const mine = userPosts.map(p => ({ ...p, user: currentUser }));
+  const uids = [currentUser.uid, ...following];
 
-  // 2) combine with the feed Redux already fetched
-  const combined = [...mine, ...feed];
+  const unsub = firebase
+    .firestore()
+    .collectionGroup("userPosts")
+.onSnapshot(async snapshot => {
+  // 1) pull raw docs → add ownerUid + ensure creation exists
+  const raw = snapshot.docs
+    .map(d => {
+      const data     = d.data();
+      const ownerUid = d.ref.parent.parent.id;
+      return { id: d.id, ...data, ownerUid };
+    })
+    // 2) filter out any docs without a valid creation.seconds
+    .filter(post => post.creation && typeof post.creation.seconds === "number");
 
-  // 3) dedupe purely by post.id
+  // 3) filter to only your feed
+  const filtered = raw.filter(p => uids.includes(p.ownerUid));
+
+  // 4) dedupe & sort
   const mapById = new Map();
-  combined.forEach(post => {
-    if (!mapById.has(post.id)) {
-      mapById.set(post.id, post);
-    }
-  });
+  filtered.forEach(p => mapById.set(p.id, p));
+  const deduped = Array.from(mapById.values())
+    .sort((a, b) => b.creation.seconds - a.creation.seconds);
 
-  // 4) sort newest-first
-  const deduped = Array.from(mapById.values()).sort(
-    (a, b) => b.creation.seconds - a.creation.seconds
-  );
+      // 4) load challenger & risker profiles in parallel
+      const enriched = await Promise.all(
+        deduped.map(async post => {
+          // challenger:
+          const uSnap = await firebase
+            .firestore()
+            .collection("users")
+            .doc(post.ownerUid)
+            .get();
+          const uData = uSnap.data() || {};
 
-  // 5) paginate & load first page
-setPosts(deduped);
+          // risker:
+          let rData = post.userRisker || {};
+          if (post.userRisker?.uid) {
+            const rSnap = await firebase
+              .firestore()
+              .collection("users")
+              .doc(post.userRisker.uid)
+              .get();
+            rData = rSnap.exists ? rSnap.data() : rData;
+          }
 
-(async () => {
-  const firstSlice = deduped.slice(0, POSTS_PER_PAGE);
-  const withCounts = await fetchCommentCounts(firstSlice);
-  setVisible(withCounts);
-  setLoading(false);
-})();
-}, [currentUser, userPosts, feed]);
+          return {
+            ...post,
+            user: {
+              uid:   post.ownerUid,
+              name:  uData.name  || "Unknown",
+              ppUrl: uData.ppUrl || null,
+            },
+            userRisker: {
+              uid:   rData.uid   || post.userRisker?.uid,
+              name:  rData.name  || post.userRisker?.name  || "Unknown",
+              ppUrl: rData.ppUrl || post.userRisker?.ppUrl || null,
+            }
+          };
+        })
+      );
 
-  // Load next page
+      // 5) set posts + first page
+      setPosts(enriched);
+      const firstPage = enriched.slice(0, POSTS_PER_PAGE);
+      const withCounts = await fetchCommentCounts(firstPage);
+      setVisible(withCounts);
+      setLoading(false);
+    });
+
+  return () => unsub();
+}, [currentUser, following]);
+
+  // ── PAGINATION FOR “LOAD MORE” ─────────────────────────────────────────────
   const loadMore = useCallback(async () => {
     if (loadingMore || !lastDoc) return;
     setLoadingMore(true);
     try {
-      const uids = [...following, currentUser.uid];
+      const uids    = [currentUser.uid, ...following];
       const batches = chunk(uids);
 
       const snaps = await Promise.all(
@@ -140,65 +177,81 @@ setPosts(deduped);
         )
       );
 
-      let docs = snaps.flatMap((snap) => snap.docs.map((d) => ({
-        id:   d.id,
-        ...d.data(),
-        creation: d.data().creation,
-        user: {
-          uid:   d.data().uid,
-          name:  d.data().name,
-          ppUrl: d.data().ppUrl,
-        }
-      })));
+      let docs = snaps.flatMap((snap) =>
+        snap.docs.map((d) => ({
+          id:       d.id,
+          ...d.data(),
+          creation: d.data().creation,
+          user: {
+            uid:   d.data().uid,
+            name:  d.data().name,
+            ppUrl: d.data().ppUrl,
+          },
+        }))
+      );
 
-      // filter out already‐loaded
-      const existingIds = new Set(posts.map((p) => p.id));
-      docs = docs.filter((p) => !existingIds.has(p.id))
-                 .sort((a, b) => b.creation.seconds - a.creation.seconds);
+      // filter out already‐loaded, sort newest first
+      const existing = new Set(posts.map(p => p.id));
+      docs = docs
+        .filter(p => !existing.has(p.id))
+        .sort((a, b) => b.creation.seconds - a.creation.seconds);
 
-      setPosts((prev) => [...prev, ...docs]);
-      setVisible((prev) => [...prev, ...docs]);
+      setPosts(prev => [...prev, ...docs]);
+      setVisible(prev => [...prev, ...docs]);
       if (docs.length) setLastDoc(docs[docs.length - 1]);
     } finally {
       setLoadingMore(false);
     }
   }, [currentUser, following, lastDoc, loadingMore, posts]);
-useEffect(() => {
-  const interval = setInterval(() => {
-    const newTimers = {};
 
-    visiblePosts.forEach((item) => {
-      // how many days this bet lasts (fallback to 7)
-      const days   = item.durationDays ?? 7;
-      const startMs = item.creation.seconds * 1000;
-      const endMs   = startMs + days * 24 * 60 * 60 * 1000;
-      const diff    = endMs - Date.now();
+  // ── COUNTDOWN TIMER UPDATES ────────────────────────────────────────────────
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const newTimers = {};
+      visiblePosts.forEach(item => {
+        const days    = item.durationDays ?? 7;
+        const startMs = item.creation.seconds * 1000;
+        const endMs   = startMs + days * 24*60*60*1000;
+        const diff    = endMs - Date.now();
 
-      if (diff > 0) {
-        // compute days / hours / minutes / seconds
-        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
-        const m = Math.floor((diff / (1000 * 60)) % 60);
-        const s = Math.floor((diff / 1000) % 60);
-        newTimers[item.id] = `${d}d ${h}h ${m}m ${s}s`;
-      } else if (!item.betExpired) {
-        // once expired, mark in Firestore so UI disables it
-        firebase
-          .firestore()
-          .collection("posts")
-          .doc(item.user.uid)
-          .collection("userPosts")
-          .doc(item.id)
-          .update({ betExpired: true })
-          .catch(console.warn);
-      }
+        if (diff > 0) {
+          const d = Math.floor(diff / 86400000);
+          const h = Math.floor((diff % 86400000) / 3600000);
+          const m = Math.floor((diff % 3600000) / 60000);
+          const s = Math.floor((diff % 60000) / 1000);
+          newTimers[item.id] = `${d}d ${h}h ${m}m ${s}s`;
+        } else if (!item.betExpired) {
+          firebase
+            .firestore()
+            .collection("posts")
+            .doc(item.user.uid)
+            .collection("userPosts")
+            .doc(item.id)
+            .update({ betExpired: true })
+            .catch(console.warn);
+        }
+      });
+      setCountdownTimers(newTimers);
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [visiblePosts]);
+
+
+  useEffect(() => {
+  if (!currentUser) return;
+
+  console.log("🚧 Running unfiltered test listener…");
+  const unsub = firebase
+    .firestore()
+    .collectionGroup("userPosts")
+    .limit(5)
+    .onSnapshot(snap => {
+      console.log("🚧 UNFILTERED snapshot.size:", snap.size);
+      snap.docs.forEach(d => console.log("🚧 post:", d.id, d.data()));
     });
 
-    setCountdownTimers(newTimers);
-  }, 1000);
-
-  return () => clearInterval(interval);
-}, [visiblePosts]);
+  return () => unsub();
+}, [currentUser]);
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, justifyContent: "center" }}>
@@ -266,7 +319,7 @@ useEffect(() => {
 const countdown = countdownTimers[item.id];
           return (
             <TouchableOpacity
-  disabled={item.deniedBet || item.betExpired}
+  disabled={item.deniedBet || item.betExpired || item.Winner}
 
               onPress={() => {
                 const isOwner = item.user.uid === currentUser.uid;

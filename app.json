@@ -14,7 +14,7 @@
       "**/*"
     ],
     "ios": {
-      "buildNumber": "89",
+      "buildNumber": "93",
       "supportsTablet": true,
       "bundleIdentifier": "com.spl.ohbetappfinal",
       "icon": "./assets/ohbet-icon-final.png",

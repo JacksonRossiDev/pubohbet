@@ -20,21 +20,7 @@ import { designHeightToPx } from "../utils/dimensions";
 import CustomHeader from "../reusable/CustomHeader";
 
 function Feed(props, {navigation}) {
-  const [posts, setPosts] = useState([]);
-  // console.log(posts)
-
-
-  useEffect(() => {
-    if (props.following.length !== 0) {
-      const feed = [...props.feed]
-        .filter(({ user }) => props.following?.includes(user?.uid))
-        .sort((x, y) => y.creation - x.creation)
-
-      
-      setPosts(feed);
-      console.log(feed)
-    }
-  }, [JSON.stringify(props.following), JSON.stringify(props.feed)]);
+ 
 
 //   useEffect(() => {
 //     console.log("refreshed")

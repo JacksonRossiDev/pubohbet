@@ -64,6 +64,21 @@ const PrePartyScreen = ({ currentUser, route, navigation }) => {
       riskerBalance: self?.creditBalance ?? 0,
     });
   };
+  const denyBet = async () => {
+  try {
+    await firebase
+      .firestore()
+      .collection("posts")
+      .doc(creatorUid)
+      .collection("userPosts")
+      .doc(postId)
+      .set({ deniedBet: true }, { merge: true });
+
+    navigation.navigate("Home");
+  } catch (error) {
+    console.error("Error denying bet:", error);
+  }
+};
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -120,7 +135,27 @@ const PrePartyScreen = ({ currentUser, route, navigation }) => {
 
         {/* 5) Instruction under hands - moved up closer */}
         <Text style={styles.instruction}>Slide Your Hand to Begin!</Text>
-
+<TouchableOpacity
+  style={{
+    backgroundColor: "#ff4d4d",
+    paddingVertical: moderateScale(12, 0.1),
+    paddingHorizontal: moderateScale(20, 0.1),
+    borderRadius: moderateScale(8, 0.1),
+    alignSelf: "center",
+    marginTop: moderateScale(20, 0.1),
+  }}
+  onPress={denyBet}
+>
+  <Text
+    style={{
+      color: "white",
+      fontSize: moderateScale(16, 0.1),
+      fontWeight: "600",
+    }}
+  >
+    Deny
+  </Text>
+</TouchableOpacity>
         {/* 6) Logo under instruction */}
         <Image
           source={require('../assets/ohbet-icon.png')}
@@ -192,7 +227,7 @@ const styles = StyleSheet.create({
   logo: {
     width: moderateScale(175, 0.1),
     height: moderateScale(175, 0.1),
-    marginTop: moderateScale(60, 0.1),
+    marginTop: moderateScale(35, 0.1),
     alignSelf: 'center',
   },
     // Modal styles

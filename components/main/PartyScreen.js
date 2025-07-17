@@ -80,7 +80,21 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
       .set({ [field]: choice }, { merge: true })
       .catch(console.error);
   };
+const denyBet = async () => {
+  try {
+    await firebase
+      .firestore()
+      .collection("posts")
+      .doc(creatorUid)
+      .collection("userPosts")
+      .doc(postId)
+      .set({ deniedBet: true }, { merge: true });
 
+    navigation.navigate("Home");
+  } catch (error) {
+    console.error("Error denying bet:", error);
+  }
+};
   const onCreatorSlideComplete = (v) => {
     if (v <= 0.25 || v >= 0.75) {
       const c = v < 0.5 ? 0 : 1;
@@ -160,21 +174,7 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
     riskerName,
   ]);
 
-  const denyBet = async () => {
-    try {
-      await firebase
-        .firestore()
-        .collection("posts")
-        .doc(creatorUid)
-        .collection("userPosts")
-        .doc(postId)
-        .set({ deniedBet: true }, { merge: true });
 
-      navigation.navigate("Home");
-    } catch (error) {
-      console.error("Error denying bet:", error);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -243,12 +243,7 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
         <Text style={styles.homeBtnText}>Back to Home</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.homeBtn, { marginTop: moderateScale(10, 0.1), backgroundColor: "#ff4d4d" }]}
-        onPress={denyBet}
-      >
-        <Text style={[styles.homeBtnText, { color: "white" }]}>Deny</Text>
-      </TouchableOpacity>
+
 
       <Image
         source={require("../assets/ohbet-icon.png")}

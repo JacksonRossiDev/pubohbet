@@ -84,7 +84,7 @@ export function fetchUsersData(uid, getPosts) {
 
             dispatch({ type: USERS_DATA_STATE_CHANGE, user });
           } else {
-            console.log("does not exist");
+            console.log("test");
           }
           if (getPosts) {
             /* //TODO maybe user.uid? user.id is original */
