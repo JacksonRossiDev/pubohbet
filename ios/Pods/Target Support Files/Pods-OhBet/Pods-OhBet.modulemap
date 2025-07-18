@@ -1,0 +1,6 @@
+module Pods_OhBet {
+  umbrella header "Pods-OhBet-umbrella.h"
+
+  export *
+  module * { export * }
+}

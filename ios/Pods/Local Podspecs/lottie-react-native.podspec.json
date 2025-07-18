@@ -1,0 +1,36 @@
+{
+  "name": "lottie-react-native",
+  "version": "6.5.1",
+  "summary": "React Native bindings for Lottie",
+  "license": "Apache-2.0",
+  "authors": "Emilio Rodriguez <emiliorodriguez@gmail.com>",
+  "homepage": "https://github.com/airbnb/lottie-react-native#readme",
+  "platforms": {
+    "ios": "12.4",
+    "osx": "10.10",
+    "tvos": "12.4"
+  },
+  "source": {
+    "git": "https://github.com/lottie-react-native/lottie-react-native.git",
+    "tag": "v6.5.1"
+  },
+  "source_files": "ios/**/*.{h,m,mm,swift}",
+  "dependencies": {
+    "lottie-ios": [
+      "~> 4.3.3"
+    ],
+    "React-Core": [],
+    "RCT-Folly": [
+      "2022.05.16.00"
+    ],
+    "glog": []
+  },
+  "swift_versions": "5.6",
+  "compiler_flags": "$(inherited) -DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1 -DFOLLY_CFG_NO_COROUTINES=1 -Wno-comma -Wno-shorten-64-to-32",
+  "pod_target_xcconfig": {
+    "HEADER_SEARCH_PATHS": "\"$(PODS_ROOT)/boost\" \"$(PODS_ROOT)/Headers/Private/Yoga\"",
+    "CLANG_CXX_LANGUAGE_STANDARD": "c++20"
+  },
+  "exclude_files": "ios/Fabric",
+  "swift_version": "5.6"
+}
