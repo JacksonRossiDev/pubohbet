@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "ohbetappfinal.app"
-               BlueprintName = "ohbetappfinal"
-               ReferencedContainer = "container:ohbetappfinal.xcodeproj">
+               BuildableName = "OhBet.app"
+               BlueprintName = "OhBet"
+               ReferencedContainer = "container:OhBet.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "ohbetappfinalTests.xctest"
-               BlueprintName = "ohbetappfinalTests"
-               ReferencedContainer = "container:ohbetappfinal.xcodeproj">
+               BuildableName = "OhBetTests.xctest"
+               BlueprintName = "OhBetTests"
+               ReferencedContainer = "container:OhBet.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "ohbetappfinal.app"
-            BlueprintName = "ohbetappfinal"
-            ReferencedContainer = "container:ohbetappfinal.xcodeproj">
+            BuildableName = "OhBet.app"
+            BlueprintName = "OhBet"
+            ReferencedContainer = "container:OhBet.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "ohbetappfinal.app"
-            BlueprintName = "ohbetappfinal"
-            ReferencedContainer = "container:ohbetappfinal.xcodeproj">
+            BuildableName = "OhBet.app"
+            BlueprintName = "OhBet"
+            ReferencedContainer = "container:OhBet.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
