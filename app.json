@@ -1,5 +1,7 @@
 {
   "expo": {
+    "sdkVersion": "49.0.0",
+    "platforms": ["ios", "android", "web"],
     "name": "OhBet",
     "slug": "ohbetappfinal",
     "privacy": "unlisted",
@@ -14,6 +16,7 @@
       "**/*"
     ],
     "plugins": [
+      "expo-dev-client",
       [
         "expo-notifications",
         {
@@ -42,16 +45,17 @@
       }
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/ohbet-icon-final.png",
-        "backgroundColor": "#FFFFFF"
-      },
+      "package": "com.spl.ohbetappfinal",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.POST_NOTIFICATIONS"
       ],
-      "package": "com.spl.ohbetappfinal"
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/ohbet-icon-final.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "useNextNotificationsApi": true
     },
     "notification": {
       "icon": "./assets/ohbet-icon-final.png",
