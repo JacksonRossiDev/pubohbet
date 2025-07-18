@@ -13,13 +13,29 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/ohbet-icon-final.png",
+          "color": "#000000"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
+        }
+      ]
+    ],
     "ios": {
       "buildNumber": "93",
       "supportsTablet": true,
       "bundleIdentifier": "com.spl.ohbetappfinal",
       "icon": "./assets/ohbet-icon-final.png",
       "infoPlist": {
-        "CFBundleDisplayName": "OhBet"
+        "CFBundleDisplayName": "OhBet",
+        "UIBackgroundModes": ["remote-notification"]
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -32,21 +48,20 @@
       },
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "package": "com.spl.ohbetappfinal"
+    },
+    "notification": {
+      "icon": "./assets/ohbet-icon-final.png",
+      "color": "#000000",
+      "androidMode": "default",
+      "androidCollapsedTitle": "New Notification"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
-        }
-      ]
-    ],
     "extra": {
       "eas": {
         "projectId": "72c1f9c2-2829-45e3-bac6-20bc0c2e992a"

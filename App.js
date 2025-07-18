@@ -1,18 +1,21 @@
 // App.js
 // @ts-nocheck
 import React, { Component } from "react";
-import { View, Text, StyleSheet, StatusBar } from "react-native";
+import { View, Text, StyleSheet, StatusBar, Alert } from "react-native";
+import { Video } from "expo-av";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
 import { Provider } from "react-redux";
 import { createStore, applyMiddleware } from "redux";
 import thunk from "redux-thunk";
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
+import "firebase/compat/firestore";
 import rootReducer from "./redux/reducers";
 import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
-import { Video } from "expo-av";
+
 import CConfirmedScreen from "./components/main/CConfirmedScreen";
-import { Alert } from "react-native";
 import WithdrawScreen from "./components/main/WithdrawScreen";
 import RegisterScreen from "./components/auth/Register";
 import LoginScreen    from "./components/auth/Login";
@@ -23,45 +26,92 @@ import SaveScreen2    from "./components/main/Save2";
 import CommentScreen  from "./components/main/Comment";
 import PrePartyScreen from "./components/main/PrePartyScreen";
 import PartyScreen    from "./components/main/PartyScreen";
-import Paywall        from "./components/main/WithdrawScreen";
-import Search from "./components/main/Search";
+import Search         from "./components/main/Search";
 
 const store = createStore(rootReducer, applyMiddleware(thunk));
 const Stack = createStackNavigator();
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBbcBZZL8KRb521O5IklU3dpM6Ze4DSe90",
-  authDomain: "ohbet-8d4b3.firebaseapp.com",
-  projectId: "ohbet-8d4b3",
-  storageBucket: "ohbet-8d4b3.appspot.com",
-  messagingSenderId: "965970461687",
-  appId: "1:965970461687:web:689b5c6d33f20a8b4c64f2",
-  measurementId: "G-9K19GV4EZ2"
-};
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+// tell Expo how to show incoming notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert:   true,
+    shouldPlaySound:   false,
+    shouldSetBadge:    false,
+  }),
+});
+
 export default class App extends Component {
   state = {
-    showSplash: true,
-    loaded:     false,
-    loggedIn:   false,
+    showSplash:    true,
+    loaded:        false,
+    loggedIn:      false,
+    expoPushToken: null,
   };
 
   async componentDidMount() {
-    this.unsubscribe = firebase.auth().onAuthStateChanged((user) => {
-      this.setState({ 
-        loggedIn: !!user,
-        loaded:   true,
+    // 1) register for push and log the token
+    this.registerForPushNotificationsAsync();
+
+    // 2) watch auth state
+    this.unsubscribeAuth = firebase
+      .auth()
+      .onAuthStateChanged(user => {
+        this.setState({
+          loggedIn: !!user,
+          loaded:   true,
+        });
       });
-    });
-    // fallback splash timeout
+
+    // 3) fallback splash timeout
     this.splashTimer = setTimeout(() => {
       this.setState({ showSplash: false });
     }, 5000);
+
+    // 4) listen for notifications in-app
+    this.notificationListener = Notifications.addNotificationReceivedListener(n =>
+      console.log("Notification received:", n)
+    );
+    this.responseListener = Notifications.addNotificationResponseReceivedListener(r =>
+      console.log("Notification response:", r)
+    );
   }
+
   componentWillUnmount() {
-    this.unsubscribe && this.unsubscribe();
+    // clean up everything
+    this.unsubscribeAuth && this.unsubscribeAuth();
     clearTimeout(this.splashTimer);
+    Notifications.removeNotificationSubscription(this.notificationListener);
+    Notifications.removeNotificationSubscription(this.responseListener);
   }
+
+  // encapsulate all push setup in one method
+  registerForPushNotificationsAsync = async () => {
+    if (!Device.isDevice) {
+      Alert.alert("Push notifications only work on physical devices");
+      return;
+    }
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let finalStatus = existing;
+    if (existing !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== "granted") {
+      Alert.alert("Push notification permission not granted!");
+      return;
+    }
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    console.log("Expo push token:", tokenData.data);
+    this.setState({ expoPushToken: tokenData.data });
+    // (Optional) save token to Firestore here, e.g.:
+    // const u = firebase.auth().currentUser;
+    // if (u) {
+    //   await firebase.firestore()
+    //     .collection("users")
+    //     .doc(u.uid)
+    //     .set({ expoPushToken: tokenData.data }, { merge: true });
+    // }
+  };
 
   render() {
     const { showSplash, loaded, loggedIn } = this.state;
@@ -93,22 +143,22 @@ export default class App extends Component {
       );
     }
 
-    // 3) Wrap ALL your navigation in the Provider
+    // 3) Main app
     return (
       <Provider store={store}>
-        <NavigationContainer theme={{
-          ...DefaultTheme,
-          colors: { secondaryContainer: "transparent" }
-        }}>
+        <NavigationContainer
+          theme={{
+            ...DefaultTheme,
+            colors: { secondaryContainer: "transparent" }
+          }}
+        >
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            { !loggedIn ? (
-              // Auth flow
+            {!loggedIn ? (
               <>
                 <Stack.Screen name="Login"    component={LoginScreen} />
                 <Stack.Screen name="Register" component={RegisterScreen} />
               </>
             ) : (
-              // Main app
               <>
                 <Stack.Screen name="Home"           component={MainScreen} />
                 <Stack.Screen name="Add"            component={AddScreen} />
@@ -118,9 +168,9 @@ export default class App extends Component {
                 <Stack.Screen name="PrePartyScreen" component={PrePartyScreen} />
                 <Stack.Screen name="Comment"        component={CommentScreen} />
                 <Stack.Screen name="Withdraw"       component={WithdrawScreen} />
-                <Stack.Screen 
-                  name="CConfirmedScreen" 
-                  component={CConfirmedScreen} 
+                <Stack.Screen
+                  name="CConfirmedScreen"
+                  component={CConfirmedScreen}
                 />
                 <Stack.Screen name="Search" component={Search} />
               </>
