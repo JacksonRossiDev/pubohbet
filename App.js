@@ -31,14 +31,14 @@ import Search             from './components/main/Search';
 
 // ————————————————————————
 // Firebase initialization
-// Replace the placeholders with your real Firebase project config
 const firebaseConfig = {
-  apiKey:             'YOUR_API_KEY',
-  authDomain:         'YOUR_AUTH_DOMAIN',
-  projectId:          'YOUR_PROJECT_ID',
-  storageBucket:      'YOUR_STORAGE_BUCKET',
-  messagingSenderId:  'YOUR_MESSAGING_SENDER_ID',
-  appId:              'YOUR_APP_ID',
+  apiKey:             "AIzaSyBbcBZZL8KRb521O5IklU3dpM6Ze4DSe90",
+  authDomain:         "ohbet-8d4b3.firebaseapp.com",
+  projectId:          "ohbet-8d4b3",
+  storageBucket:      "ohbet-8d4b3.appspot.com",
+  messagingSenderId:  "965970461687",
+  appId:              "1:965970461687:web:689b5c6d33f20a8b4c64f2",
+  measurementId:      "G-9K19GV4EZ2"
 };
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
@@ -56,19 +56,19 @@ const Stack = createStackNavigator();
 // Expo notifications handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
+    shouldShowAlert:   true,
+    shouldPlaySound:   false,
+    shouldSetBadge:    false,
   }),
 });
 
-// Create an Android notification channel (required on Android 8+)
+// Android notification channel (required on Android 8+)
 if (Platform.OS === 'android') {
   Notifications.setNotificationChannelAsync('default', {
-    name: 'default',
-    importance: Notifications.AndroidImportance.DEFAULT,
+    name:             'default',
+    importance:       Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#FF231F7C',
+    lightColor:       '#FF231F7C',
   });
 }
 
@@ -80,26 +80,35 @@ export default class App extends Component {
     expoPushToken: null,
   };
 
-  async componentDidMount() {
-    // 1) register for push and log the token
-    this.registerForPushNotificationsAsync();
+  componentDidMount() {
+    // 1) Watch Firebase auth state, then register & save push token once logged in
+    this.unsubscribeAuth = firebase.auth().onAuthStateChanged(async (user) => {
+      this.setState({ loaded: true, loggedIn: !!user });
 
-    // 2) watch Firebase auth state
-    this.unsubscribeAuth = firebase
-      .auth()
-      .onAuthStateChanged(user => {
-        this.setState({
-          loggedIn: !!user,
-          loaded:   true,
-        });
-      });
+      if (user) {
+        const token = await this.registerForPushNotificationsAsync();
 
-    // 3) fallback splash timeout
+        if (token) {
+          try {
+            await firebase
+              .firestore()
+              .collection('users')
+              .doc(user.uid)
+              .set({ expoPushToken: token }, { merge: true });
+            console.log('Expo push token saved to Firestore');
+          } catch (e) {
+            console.error('Failed to save push token', e);
+          }
+        }
+      }
+    });
+
+    // 2) Fallback splash timeout
     this.splashTimer = setTimeout(() => {
       this.setState({ showSplash: false });
     }, 5000);
 
-    // 4) listen for notifications in-app
+    // 3) In-app notification listeners
     this.notificationListener = Notifications.addNotificationReceivedListener(n =>
       console.log('Notification received:', n)
     );
@@ -115,11 +124,11 @@ export default class App extends Component {
     Notifications.removeNotificationSubscription(this.responseListener);
   }
 
-  // encapsulate all push setup in one method
+  // Encapsulate push setup; returns the token string
   registerForPushNotificationsAsync = async () => {
     if (!Device.isDevice) {
       Alert.alert('Push notifications only work on physical devices');
-      return;
+      return null;
     }
     const { status: existing } = await Notifications.getPermissionsAsync();
     let finalStatus = existing;
@@ -129,18 +138,18 @@ export default class App extends Component {
     }
     if (finalStatus !== 'granted') {
       Alert.alert('Push notification permission not granted!');
-      return;
+      return null;
     }
     const tokenData = await Notifications.getExpoPushTokenAsync();
     console.log('Expo push token:', tokenData.data);
     this.setState({ expoPushToken: tokenData.data });
-    // Optional: save tokenData.data to Firestore under the current user
+    return tokenData.data;
   };
 
   render() {
     const { showSplash, loaded, loggedIn } = this.state;
 
-    // 1) Splash screen (custom video)
+    // 1) Splash screen (video)
     if (showSplash) {
       return (
         <View style={styles.splashContainer}>

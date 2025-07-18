@@ -1,12 +1,12 @@
 {
   "expo": {
-        "entryPoint": "index.js",
-  "main": "index.js",  
-    "sdkVersion": "49.0.0",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "name": "OhBet",
     "slug": "ohbetappfinal",
-    "privacy": "unlisted",
     "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/ohbet-icon-final.png",
@@ -31,16 +31,19 @@
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
         }
-      ]
+      ],
+      "expo-tracking-transparency"
     ],
     "ios": {
-      "buildNumber": "93",
+      "buildNumber": "95",
       "supportsTablet": true,
       "bundleIdentifier": "com.spl.ohbetappfinal",
       "icon": "./assets/ohbet-icon-final.png",
       "infoPlist": {
         "CFBundleDisplayName": "OhBet",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -56,8 +59,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/ohbet-icon-final.png",
         "backgroundColor": "#FFFFFF"
-      },
-      "useNextNotificationsApi": true
+      }
     },
     "notification": {
       "icon": "./assets/ohbet-icon-final.png",

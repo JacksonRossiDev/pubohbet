@@ -141,7 +141,9 @@ function Feed(props, {navigation}) {
         numColumns={1}
         style={styles.listWrapper}
         horizontal={false}
-        data={posts}
+          keyExtractor={(item) => item.id}
+
+        data={props.feed}
         ListHeaderComponent={() => (
           <>
             {/* trending */}
