@@ -95,7 +95,7 @@ PODS:
     - ExpoModulesCore
     - ZXingObjC/OneD
     - ZXingObjC/PDF417
-  - ExpoDevice (5.4.0):
+  - ExpoDevice (5.3.0):
     - ExpoModulesCore
   - ExpoFileSystem (16.0.9):
     - ExpoModulesCore
@@ -1499,7 +1499,7 @@ SPEC CHECKSUMS:
   expo-dev-menu-interface: 44e69ddff62bbc6c5418c200e657635720b5a480
   ExpoBlur: 3a9548a738624968836926f4aa1e18fa22155640
   ExpoCamera: 1f56a66ed9d7530a8c436e095560bade5efa4b8a
-  ExpoDevice: 0333baa899c09213c1c6cb3d1a1b2061fb00594c
+  ExpoDevice: 97b9bdd5709e97c186ad0729e5c0115628a9fdad
   ExpoFileSystem: df58e1eb2a4d6f1006a1ca70bddfbbf63e52fa4f
   ExpoImagePicker: d06822d74f1f0e7fe7cb070ece0fff6e678fa3eb
   ExpoKeepAwake: 3b8cf8533b9212500565a1e41fb080fc5af29918

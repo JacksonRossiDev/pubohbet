@@ -35,7 +35,7 @@
       "expo-tracking-transparency"
     ],
     "ios": {
-      "buildNumber": "97",
+      "buildNumber": "98",
       "supportsTablet": true,
       "bundleIdentifier": "com.spl.ohbetappfinal",
       "icon": "./assets/ohbet-icon-final.png",
