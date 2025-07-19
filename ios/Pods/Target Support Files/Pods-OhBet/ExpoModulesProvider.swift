@@ -10,8 +10,6 @@ import EXApplication
 import EXAV
 import ExpoBlur
 import ExpoCamera
-import EXConstants
-import ExpoDevice
 import ExpoFileSystem
 import ExpoImagePicker
 import ExpoKeepAwake
@@ -32,8 +30,6 @@ public class ExpoModulesProvider: ModulesProvider {
       BlurViewModule.self,
       CameraViewModule.self,
       CameraViewNextModule.self,
-      ConstantsModule.self,
-      DeviceModule.self,
       FileSystemModule.self,
       ImagePickerModule.self,
       KeepAwakeModule.self,
@@ -54,8 +50,6 @@ public class ExpoModulesProvider: ModulesProvider {
       BlurViewModule.self,
       CameraViewModule.self,
       CameraViewNextModule.self,
-      ConstantsModule.self,
-      DeviceModule.self,
       FileSystemModule.self,
       ImagePickerModule.self,
       KeepAwakeModule.self,

@@ -5,7 +5,7 @@ import React, { Component } from 'react';
 import { View, Text, StyleSheet, StatusBar, Alert, Platform } from 'react-native';
 import { Video } from 'expo-av';
 import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Provider } from 'react-redux';
 import { createStore, applyMiddleware } from 'redux';
 import thunk from 'redux-thunk';
@@ -125,26 +125,32 @@ export default class App extends Component {
   }
 
   // Encapsulate push setup; returns the token string
-  registerForPushNotificationsAsync = async () => {
-    if (!Device.isDevice) {
-      Alert.alert('Push notifications only work on physical devices');
-      return null;
-    }
-    const { status: existing } = await Notifications.getPermissionsAsync();
-    let finalStatus = existing;
-    if (existing !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== 'granted') {
-      Alert.alert('Push notification permission not granted!');
-      return null;
-    }
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    console.log('Expo push token:', tokenData.data);
-    this.setState({ expoPushToken: tokenData.data });
-    return tokenData.data;
-  };
+
+registerForPushNotificationsAsync = async () => {
+  if (!Constants.isDevice) {
+    Alert.alert('Push notifications only work on physical devices');
+    return null;
+  }
+
+  const { status: existing } = await Notifications.getPermissionsAsync();
+  let finalStatus = existing;
+
+  if (existing !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  if (finalStatus !== 'granted') {
+    Alert.alert('Push notification permission not granted!');
+    return null;
+  }
+
+  const tokenData = await Notifications.getExpoPushTokenAsync();
+  console.log('Expo push token:', tokenData.data);
+  this.setState({ expoPushToken: tokenData.data });
+
+  return tokenData.data;
+};
 
   render() {
     const { showSplash, loaded, loggedIn } = this.state;

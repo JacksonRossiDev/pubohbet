@@ -47,4 +47,4 @@ with_node \
   generate-modules-provider  \
   --target "/Users/jacksonrossi/Desktop/OBXc/OhBetApp-main/ios/Pods/Target Support Files/Pods-OhBet/ExpoModulesProvider.swift" \
   --platform "apple" \
-  --packages "expo-application" "expo-av" "expo-blur" "expo-camera" "expo-constants" "expo-dev-launcher" "expo-dev-menu" "expo-device" "expo-file-system" "expo-image-picker" "expo-keep-awake" "expo-linear-gradient" "expo-tracking-transparency"
+  --packages "expo-application" "expo-av" "expo-blur" "expo-camera" "expo-dev-launcher" "expo-dev-menu" "expo-file-system" "expo-image-picker" "expo-keep-awake" "expo-linear-gradient" "expo-tracking-transparency"
