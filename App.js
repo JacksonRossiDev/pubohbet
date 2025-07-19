@@ -127,29 +127,27 @@ export default class App extends Component {
   // Encapsulate push setup; returns the token string
 
 registerForPushNotificationsAsync = async () => {
-  if (!Constants.isDevice) {
-    Alert.alert('Push notifications only work on physical devices');
-    return null;
-  }
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
 
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let finalStatus = existing;
-
-  if (existing !== 'granted') {
+  if (existingStatus !== 'granted') {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
 
   if (finalStatus !== 'granted') {
-    Alert.alert('Push notification permission not granted!');
+    console.log('Failed to get push token permissions!');
     return null;
   }
 
-  const tokenData = await Notifications.getExpoPushTokenAsync();
-  console.log('Expo push token:', tokenData.data);
-  this.setState({ expoPushToken: tokenData.data });
-
-  return tokenData.data;
+  try {
+    const token = (await Notifications.getExpoPushTokenAsync()).data;
+    console.log('Push token:', token);
+    return token;
+  } catch (error) {
+    console.log('Error getting push token:', error);
+    return null;
+  }
 };
 
   render() {
