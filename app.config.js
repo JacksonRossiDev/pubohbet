@@ -42,7 +42,7 @@ export default ({ config }) => {
       },
       assetBundlePatterns: ['**/*'],
       ios: {
-        buildNumber: '103',
+        buildNumber: '104',
         supportsTablet: true,
         bundleIdentifier: 'com.spl.ohbetappfinal',
         icon: './assets/ohbet-icon-final.png',
