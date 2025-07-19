@@ -32,7 +32,7 @@ export default ({ config }) => {
       ...config.expo,
       name: 'OhBet',
       slug: 'ohbetappfinal',
-      version: '1.0.5',
+      version: '1.0.55',
       orientation: 'portrait',
       icon: './assets/ohbet-icon-final.png',
       userInterfaceStyle: 'light',
@@ -42,7 +42,7 @@ export default ({ config }) => {
       },
       assetBundlePatterns: ['**/*'],
       ios: {
-        buildNumber: '105',
+        buildNumber: '106',
         supportsTablet: true,
         bundleIdentifier: 'com.spl.ohbetappfinal',
         icon: './assets/ohbet-icon-final.png',
