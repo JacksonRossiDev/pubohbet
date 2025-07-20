@@ -157,9 +157,11 @@ registerForPushNotificationsAsync = async (uid) => {
   }
 
   // 3) Fetch the Expo push token
-  let tokenResponse;
+ let tokenResponse;
   try {
-    tokenResponse = await Notifications.getExpoPushTokenAsync();
+    tokenResponse = await Notifications.getExpoPushTokenAsync({
+      projectId: '72c1f9c2-2829-45e3-bac6-20bc0c2e992a',
+    });
     console.log('🎉 getExpoPushTokenAsync response:', tokenResponse);
   } catch (err) {
     console.error('❌ Error fetching Expo push token:', err);

@@ -24,7 +24,7 @@ module.exports = {
 
     ios: {
       bundleIdentifier: 'com.spl.ohbetappfinal',
-      buildNumber: '131',
+      buildNumber: '133',
       supportsTablet: true,
       icon: './assets/ohbet-icon-final.png',
       infoPlist: {
