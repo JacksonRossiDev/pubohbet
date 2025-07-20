@@ -2,7 +2,14 @@
 // @ts-nocheck
 import 'react-native-gesture-handler'; // required if you use React Navigation
 import React, { Component } from 'react';
-import { View, Text, StyleSheet, StatusBar, Alert, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  StatusBar,
+  Alert,
+  Platform,
+} from 'react-native';
 import { Video } from 'expo-av';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
@@ -86,20 +93,8 @@ export default class App extends Component {
       this.setState({ loaded: true, loggedIn: !!user });
 
       if (user) {
-        const token = await this.registerForPushNotificationsAsync();
-
-        if (token) {
-          try {
-            await firebase
-              .firestore()
-              .collection('users')
-              .doc(user.uid)
-              .set({ expoPushToken: token }, { merge: true });
-            console.log('Expo push token saved to Firestore');
-          } catch (e) {
-            console.error('Failed to save push token', e);
-          }
-        }
+        // Pass UID so helper can save + alert
+        await this.registerForPushNotificationsAsync(user.uid);
       }
     });
 
@@ -124,31 +119,50 @@ export default class App extends Component {
     Notifications.removeNotificationSubscription(this.responseListener);
   }
 
-  // Encapsulate push setup; returns the token string
+  /**
+   * Pulls an Expo push token, saves it to state & Firestore, and shows a confirmation Alert.
+   * @param {string} uid  Firebase Auth UID of the current user
+   */
+  registerForPushNotificationsAsync = async (uid) => {
+    // 1) Permissions
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      console.warn('⚠️ Push permissions not granted');
+      return null;
+    }
 
-registerForPushNotificationsAsync = async () => {
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
+    try {
+      // 2) Get token
+      const token = (await Notifications.getExpoPushTokenAsync()).data;
+      this.setState({ expoPushToken: token });
+      console.log('🎉 Push token acquired:', token);
 
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
+      // 3) Save to Firestore
+      await firebase
+        .firestore()
+        .collection('users')
+        .doc(uid)
+        .set({ expoPushToken: token }, { merge: true });
+      console.log(`✅ expoPushToken for ${uid} saved to Firestore`);
 
-  if (finalStatus !== 'granted') {
-    console.log('Failed to get push token permissions!');
-    return null;
-  }
+      // 4) Alert the user
+      Alert.alert(
+        'Push Notifications Enabled',
+        `Your token (${token.slice(-8)}) was saved successfully.`
+      );
 
-  try {
-    const token = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log('Push token:', token);
-    return token;
-  } catch (error) {
-    console.log('Error getting push token:', error);
-    return null;
-  }
-};
+      return token;
+    } catch (error) {
+      console.error('❌ Error in push-token flow:', error);
+      Alert.alert('Error', 'Could not register for push notifications.');
+      return null;
+    }
+  };
 
   render() {
     const { showSplash, loaded, loggedIn } = this.state;
