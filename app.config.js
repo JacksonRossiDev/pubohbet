@@ -1,73 +1,67 @@
 // app.config.js
-export default {
+module.exports = {
   expo: {
     projectId: '72c1f9c2-2829-45e3-bac6-20bc0c2e992a',
     name: 'OhBet',
     slug: 'ohbetappfinal',
     version: '5.0.0',
+    sdkVersion: '50.0.0',
+
     orientation: 'portrait',
     icon: './assets/ohbet-icon-final.png',
     userInterfaceStyle: 'light',
     platforms: ['ios', 'android', 'web'],
-    updates: {
-      fallbackToCacheTimeout: 0
-    },
+
+    updates: { fallbackToCacheTimeout: 0 },
     assetBundlePatterns: ['**/*'],
+
     plugins: [
-      [
-        'expo-notifications',
-        {
-          icon: './assets/ohbet-icon-final.png',
-          color: '#000000'
-        }
-      ],
-      [
-        'expo-camera',
-        {
-          cameraPermission: 'Allow $(PRODUCT_NAME) to access your camera.'
-        }
-      ],
-      'expo-tracking-transparency'
+      // exactly like in your working project:
+      'expo-notifications',
+      'expo-camera',
+      'expo-tracking-transparency',
+      // you can add expo-build-properties if you need custom entitlements/build flags
     ],
+
     ios: {
       bundleIdentifier: 'com.spl.ohbetappfinal',
-      buildNumber: '130',
+      buildNumber: '131',
       supportsTablet: true,
       icon: './assets/ohbet-icon-final.png',
       infoPlist: {
         CFBundleDisplayName: 'OhBet',
         NSUserNotificationUsageDescription: 'We use notifications to keep you updated.',
-        UIBackgroundModes: ['remote-notification']
+        UIBackgroundModes: ['remote-notification'],
       },
       entitlements: {
-        'aps-environment': 'production'
-      }
+        'aps-environment': 'production',
+      },
     },
+
     android: {
       package: 'com.spl.ohbetappfinal',
       permissions: [
         'android.permission.CAMERA',
         'android.permission.RECORD_AUDIO',
-        'android.permission.POST_NOTIFICATIONS'
+        'android.permission.POST_NOTIFICATIONS',
       ],
       adaptiveIcon: {
         foregroundImage: './assets/ohbet-icon-final.png',
-        backgroundColor: '#FFFFFF'
-      }
+        backgroundColor: '#FFFFFF',
+      },
     },
+
     notification: {
       icon: './assets/ohbet-icon-final.png',
       color: '#000000',
       androidMode: 'default',
-      androidCollapsedTitle: 'New Notification'
+      androidCollapsedTitle: 'New Notification',
     },
-    web: {
-      favicon: './assets/favicon.png'
-    },
+
+    web: { favicon: './assets/favicon.png' },
+
     extra: {
-      eas: {
-        projectId: '72c1f9c2-2829-45e3-bac6-20bc0c2e992a'
-      }
-    }
-  }
+      eas: { projectId: '72c1f9c2-2829-45e3-bac6-20bc0c2e992a' },
+    },
+  },
 };
