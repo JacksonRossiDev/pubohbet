@@ -32,7 +32,7 @@ export default ({ config }) => {
       ios: {
         ...config.expo.ios,
         bundleIdentifier: 'com.spl.ohbetappfinal',
-        buildNumber: '129',
+        buildNumber: '130',
         supportsTablet: true,
         icon: './assets/ohbet-icon-final.png',
         infoPlist: {
