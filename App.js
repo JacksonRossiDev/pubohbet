@@ -123,46 +123,69 @@ export default class App extends Component {
    * Pulls an Expo push token, saves it to state & Firestore, and shows a confirmation Alert.
    * @param {string} uid  Firebase Auth UID of the current user
    */
-  registerForPushNotificationsAsync = async (uid) => {
-    // 1) Permissions
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== 'granted') {
-      console.warn('⚠️ Push permissions not granted');
-      return null;
-    }
+/**
+ * Pulls an Expo push token, saves it to state & Firestore, and shows a confirmation Alert.
+ * @param {string} uid  Firebase Auth UID of the current user
+ */
+registerForPushNotificationsAsync = async (uid) => {
+  console.log('🏁 Starting push flow', {
+    uid,
+    buildProfile: 'production',  // hard-coded for TestFlight
+    dev: __DEV__,
+    platform: Platform.OS,
+    osVersion: Platform.Version,
+  });
 
-    try {
-      // 2) Get token
-      const token = (await Notifications.getExpoPushTokenAsync()).data;
-      this.setState({ expoPushToken: token });
-      console.log('🎉 Push token acquired:', token);
+  // 1) Check existing permissions
+  const { status: existingStatus, granted, canAskAgain } =
+    await Notifications.getPermissionsAsync();
+  console.log('🔍 Existing permissions:', { existingStatus, granted, canAskAgain });
 
-      // 3) Save to Firestore
-      await firebase
-        .firestore()
-        .collection('users')
-        .doc(uid)
-        .set({ expoPushToken: token }, { merge: true });
-      console.log(`✅ expoPushToken for ${uid} saved to Firestore`);
+  // 2) Request if not granted
+  let finalStatus = existingStatus;
+  if (existingStatus !== 'granted') {
+    const { status, granted: granted2, canAskAgain: canAskAgain2 } =
+      await Notifications.requestPermissionsAsync();
+    console.log('🎯 Requested permissions:', { status, granted2, canAskAgain2 });
+    finalStatus = status;
+  }
 
-      // 4) Alert the user
-      Alert.alert(
-        'Push Notifications Enabled',
-        `Your token (${token.slice(-8)}) was saved successfully.`
-      );
+  if (finalStatus !== 'granted') {
+    console.warn('⚠️ Push permissions denied');
+    Alert.alert('Permissions denied', 'Cannot receive push notifications.');
+    return null;
+  }
 
-      return token;
-    } catch (error) {
-      console.error('❌ Error in push-token flow:', error);
-      Alert.alert('Error', 'Could not register for push notifications.');
-      return null;
-    }
-  };
+  // 3) Fetch the Expo push token
+  let tokenResponse;
+  try {
+    tokenResponse = await Notifications.getExpoPushTokenAsync();
+    console.log('🎉 getExpoPushTokenAsync response:', tokenResponse);
+  } catch (err) {
+    console.error('❌ Error fetching Expo push token:', err);
+    Alert.alert('Token error', err.message || String(err));
+    return null;
+  }
+  const token = tokenResponse.data;
+  console.log('🏷 Expo push token:', token);
+
+  // 4) Save to Firestore
+  try {
+    console.log('💾 Writing token to Firestore for uid:', uid);
+    await firebase
+      .firestore()
+      .collection('users')
+      .doc(uid)
+      .set({ expoPushToken: token }, { merge: true });
+    console.log('✅ Firestore write succeeded');
+    Alert.alert('Push Enabled', `Token saved (${token.slice(-8)})`);
+  } catch (err) {
+    console.error('❌ Firestore write failed:', err);
+    Alert.alert('Save error', err.message || String(err));
+  }
+
+  return token;
+};
 
   render() {
     const { showSplash, loaded, loggedIn } = this.state;
