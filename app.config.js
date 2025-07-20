@@ -15,12 +15,11 @@ module.exports = {
     updates: { fallbackToCacheTimeout: 0 },
     assetBundlePatterns: ['**/*'],
 
+    // exactly like elevate:
     plugins: [
-      // exactly like in your working project:
       'expo-notifications',
       'expo-camera',
       'expo-tracking-transparency',
-      // you can add expo-build-properties if you need custom entitlements/build flags
     ],
 
     ios: {
@@ -60,8 +59,6 @@ module.exports = {
 
     web: { favicon: './assets/favicon.png' },
 
-    extra: {
-      eas: { projectId: '72c1f9c2-2829-45e3-bac6-20bc0c2e992a' },
-    },
+    extra: { eas: { projectId: '72c1f9c2-2829-45e3-bac6-20bc0c2e992a' } },
   },
 };
