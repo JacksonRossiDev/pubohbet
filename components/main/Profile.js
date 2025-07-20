@@ -20,7 +20,7 @@ import { fetchUserPosts } from "../../redux/actions";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { BlurView } from 'expo-blur';
 import { ImageBackground } from 'react-native';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 require("firebase/firestore");
 
@@ -145,7 +145,11 @@ function Profile(props) {
       
     })
 }
-
+  const onLogout = async () => {
+    await firebase.auth().signOut();
+    await AsyncStorage.removeItem('userToken');
+    props.navigation.replace('Login'); // or your root auth screen
+  };
   const onFollow = () => {
     firebase
       .firestore()
@@ -204,6 +208,11 @@ function Profile(props) {
         </View>
   </View>
 </TouchableOpacity>
+  {props.route.params?.uid === currentUser && (
+    <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
+      <Text style={styles.logoutBtnLabel}>Logout</Text>
+    </TouchableOpacity>
+  )}
           <View style={styles.informationColumn}>
             
           </View>
@@ -816,6 +825,19 @@ comingSoonText: {
     color:'red'
     
   },
+  logoutBtn: {
+  marginTop: moderateScale(16, 0.1),
+  backgroundColor: 'white',
+  paddingVertical: moderateScale(12, 0.1),
+  paddingHorizontal: moderateScale(24, 0.1),
+  borderRadius: 16,
+},
+logoutBtnLabel: {
+  color: '#6CB4EE',
+  fontSize: moderateScale(12, 0.1),
+  fontWeight: '500',
+  textAlign: 'center',
+},
 });
 const mapStateToProps = (store) => ({
   currentUser: store.userState.currentUser,

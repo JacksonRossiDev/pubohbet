@@ -4,7 +4,7 @@ module.exports = {
     projectId: '72c1f9c2-2829-45e3-bac6-20bc0c2e992a',
     name: 'OhBet',
     slug: 'ohbetappfinal',
-    version: '5.0.0',
+    version: '5.0.1',
     sdkVersion: '50.0.0',
 
     orientation: 'portrait',
@@ -24,7 +24,7 @@ module.exports = {
 
     ios: {
       bundleIdentifier: 'com.spl.ohbetappfinal',
-      buildNumber: '133',
+      buildNumber: '134',
       supportsTablet: true,
       icon: './assets/ohbet-icon-final.png',
       infoPlist: {
