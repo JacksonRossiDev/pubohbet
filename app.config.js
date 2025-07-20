@@ -3,7 +3,7 @@ export default {
   expo: {
     name: 'OhBet',
     slug: 'ohbetappfinal',
-    version: '1.0.56',
+    version: '5.0.0',
     orientation: 'portrait',
     icon: './assets/ohbet-icon-final.png',
     userInterfaceStyle: 'light',
@@ -25,7 +25,7 @@ export default {
     ],
     ios: {
       bundleIdentifier: 'com.spl.ohbetappfinal',
-      buildNumber: '127',
+      buildNumber: '129',
       supportsTablet: true,
       icon: './assets/ohbet-icon-final.png',
       infoPlist: {
