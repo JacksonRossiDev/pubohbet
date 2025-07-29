@@ -240,8 +240,14 @@ registerForPushNotificationsAsync = async (uid) => {
                 <Stack.Screen name="Add"            component={AddScreen} />
                 <Stack.Screen name="Save"           component={SaveScreen} />
                 <Stack.Screen name="Save2"          component={SaveScreen2} />
-                <Stack.Screen name="PartyScreen"    component={PartyScreen} />
-                <Stack.Screen name="PrePartyScreen" component={PrePartyScreen} />
+                <Stack.Screen name="PartyScreen"    component={PartyScreen} options={{
+      gestureEnabled: false,   // 🔒 disable swipe-back
+      headerBackTitleVisible: false, // (optional) hide the back button label
+    }}/>
+                <Stack.Screen name="PrePartyScreen" component={PrePartyScreen} options={{
+      gestureEnabled: false,   // 🔒 disable swipe-back
+      headerBackTitleVisible: false, // (optional) hide the back button label
+    }}/>
                 <Stack.Screen name="Comment"        component={CommentScreen} />
                 <Stack.Screen name="Withdraw"       component={WithdrawScreen} />
                 <Stack.Screen name="CConfirmedScreen" component={CConfirmedScreen} />

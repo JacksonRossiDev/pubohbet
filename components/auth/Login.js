@@ -6,6 +6,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Dimensions
 } from "react-native";
 import { moderateScale } from "react-native-size-matters";
 
@@ -16,6 +17,7 @@ import {
   SafeAreaView,
   withSafeAreaInsets,
 } from "react-native-safe-area-context";
+const { height } = Dimensions.get('window');
 
 
 class Login extends Component {
@@ -62,11 +64,17 @@ class Login extends Component {
   render() {
     const { insets } = this.props;
     return (
-      <ImageBackground
-      backgroundColor="black"
-        source={require("../../assets/pit.jpeg")}
-        style={{ flex: 1 }}
-      >
+<ImageBackground
+      source={require("../../assets/pit.jpeg")}
+      style={{ flex: 1, marginTop:105 }}
+      resizeMode="cover"
+      imageStyle={{
+        transform: [
+          { scale: 1.20 },                        // zoom in 10%
+          { translateY: -height * 0.02 }         // shift up by 5% of screen height
+        ],
+      }}
+    >
         <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
           <View style={styles.container}>
             <View style={styles.blank}></View>
@@ -74,8 +82,7 @@ class Login extends Component {
               style={[
                 styles.form,
                 {
-                  paddingTop: moderateScale(70 - insets.bottom, 0.1),
-                  paddingBottom: insets.bottom,
+marginTop:-115,                  paddingBottom: insets.bottom,
                 },
               ]}
             >

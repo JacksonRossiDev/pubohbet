@@ -47,7 +47,7 @@ const CustomHeader = (props) => {
         style={styles.iconLeft}
         activeOpacity={0.8}
       >
-        <Ionicons name="search" size={24} color="white" />
+        {/* <Ionicons name="search" size={24} color="white" /> */}
       </TouchableOpacity>
 
       {/* Logo in the center */}

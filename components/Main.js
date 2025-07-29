@@ -22,6 +22,7 @@ import FeedScreen from "./main/Feed";
 import ProfileScreen from "./main/Profile";
 import UserMatch from "./main/userMatch";
 import SearchScreen from "./main/Search"
+import Search from "./main/Search";
 const Tab = createBottomTabNavigator();
 
 export class Main extends Component {
@@ -64,8 +65,8 @@ export class Main extends Component {
 
         {/* Chat (Middle) Tab with Band */}
         <Tab.Screen
-  name="Chat"
-  component={UserMatch}
+  name="Search"
+  component={Search}
   options={{
     tabBarIcon: ({ focused }) => (
       <View style={styles.middleIconWrapper}>

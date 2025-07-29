@@ -158,7 +158,7 @@ const PrePartyScreen = ({ currentUser, route, navigation }) => {
 </TouchableOpacity>
         {/* 6) Logo under instruction */}
         <Image
-          source={require('../assets/ohbet-icon.png')}
+          source={require('../assets/ohbetnotstretched.png')}
           style={styles.logo}
         />
       </View>

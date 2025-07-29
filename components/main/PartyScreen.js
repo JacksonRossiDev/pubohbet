@@ -1,5 +1,3 @@
-// PartyScreen.js
-// @ts-nocheck
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -34,26 +32,24 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
   const [creatorChoice, setCreatorChoice] = useState(null);
   const [riskerChoice, setRiskerChoice] = useState(null);
   const [betComplete, setBetComplete] = useState(false);
+
+  // 👉 slider "thumb" positions
   const [creatorSliderValue, setCreatorSliderValue] = useState(0.5);
   const [riskerSliderValue, setRiskerSliderValue] = useState(0.5);
 
+  // fetch user names
   useEffect(() => {
-    firebase
-      .firestore()
-      .collection("users")
-      .doc(creatorUid)
-      .get()
-      .then((snap) => snap.exists && setCreatorName(snap.data().name))
+    firebase.firestore().collection("users")
+      .doc(creatorUid).get()
+      .then(s => s.exists && setCreatorName(s.data().name))
       .catch(console.error);
-    firebase
-      .firestore()
-      .collection("users")
-      .doc(riskerUid)
-      .get()
-      .then((snap) => snap.exists && setRiskerName(snap.data().name))
+    firebase.firestore().collection("users")
+      .doc(riskerUid).get()
+      .then(s => s.exists && setRiskerName(s.data().name))
       .catch(console.error);
   }, [creatorUid, riskerUid]);
 
+  // listen for remote sliderChoice + betComplete
   useEffect(() => {
     const ref = firebase
       .firestore()
@@ -61,17 +57,28 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
       .doc(creatorUid)
       .collection("userPosts")
       .doc(postId);
+
     return ref.onSnapshot((snap) => {
       if (!snap.exists) return;
       const d = snap.data();
-      if (d.betComplete) setBetComplete(true);
-      if (d.sliderCreatorChoice != null) setCreatorChoice(d.sliderCreatorChoice);
-      if (d.sliderRiskerChoice != null) setRiskerChoice(d.sliderRiskerChoice);
+
+      if (d.betComplete) {
+        setBetComplete(true);
+      }
+      // hydrate both choice *and* slider position
+      if (d.sliderCreatorChoice != null) {
+        setCreatorChoice(d.sliderCreatorChoice);
+        setCreatorSliderValue(d.sliderCreatorChoice);
+      }
+      if (d.sliderRiskerChoice != null) {
+        setRiskerChoice(d.sliderRiskerChoice);
+        setRiskerSliderValue(d.sliderRiskerChoice);
+      }
     });
   }, [creatorUid, postId]);
 
   const writeChoice = (field, choice) => {
-    firebase
+    return firebase
       .firestore()
       .collection("posts")
       .doc(creatorUid)
@@ -80,27 +87,17 @@ const PartyScreen = ({ currentUser, route, navigation }) => {
       .set({ [field]: choice }, { merge: true })
       .catch(console.error);
   };
-const denyBet = async () => {
-  try {
-    await firebase
-      .firestore()
-      .collection("posts")
-      .doc(creatorUid)
-      .collection("userPosts")
-      .doc(postId)
-      .set({ deniedBet: true }, { merge: true });
 
-    navigation.navigate("Home");
-  } catch (error) {
-    console.error("Error denying bet:", error);
-  }
-};
   const onCreatorSlideComplete = (v) => {
     if (v <= 0.25 || v >= 0.75) {
       const c = v < 0.5 ? 0 : 1;
+      // snap local thumb
+      setCreatorSliderValue(c);
+      // persist choice
       setCreatorChoice(c);
       writeChoice("sliderCreatorChoice", c);
     } else {
+      // bounce back to center
       setCreatorSliderValue(0.5);
     }
   };
@@ -108,6 +105,7 @@ const denyBet = async () => {
   const onRiskerSlideComplete = (v) => {
     if (v <= 0.25 || v >= 0.75) {
       const c = v < 0.5 ? 0 : 1;
+      setRiskerSliderValue(c);
       setRiskerChoice(c);
       writeChoice("sliderRiskerChoice", c);
     } else {
@@ -115,52 +113,49 @@ const denyBet = async () => {
     }
   };
 
+  // once both have chosen the same, run transaction
   useEffect(() => {
     if (
       betComplete ||
       creatorChoice == null ||
       riskerChoice == null ||
       creatorChoice !== riskerChoice
-    )
-      return;
+    ) return;
 
     const creatorWins = creatorChoice === 0;
     const winnerUid = creatorWins ? creatorUid : riskerUid;
-    const loserUid = creatorWins ? riskerUid : creatorUid;
+    const loserUid  = creatorWins ? riskerUid : creatorUid;
     const winnerName = creatorWins ? creatorName : riskerName;
 
     const winnerRef = firebase.firestore().collection("users").doc(winnerUid);
-    const loserRef = firebase.firestore().collection("users").doc(loserUid);
-    const postRef = firebase
+    const loserRef  = firebase.firestore().collection("users").doc(loserUid);
+    const postRef   = firebase
       .firestore()
       .collection("posts")
       .doc(creatorUid)
       .collection("userPosts")
       .doc(postId);
 
-    firebase
-      .firestore()
-      .runTransaction(async (tx) => {
-        const [wSnap, lSnap] = await Promise.all([
-          tx.get(winnerRef),
-          tx.get(loserRef),
-        ]);
-        const wOld = wSnap.data()?.creditBalance ?? 0;
-        const lOld = lSnap.data()?.creditBalance ?? 0;
+    firebase.firestore().runTransaction(async (tx) => {
+      const [wSnap, lSnap] = await Promise.all([
+        tx.get(winnerRef),
+        tx.get(loserRef),
+      ]);
+      const wOld = wSnap.data()?.creditBalance ?? 0;
+      const lOld = lSnap.data()?.creditBalance ?? 0;
 
-        tx.set(winnerRef, { creditBalance: wOld + wager }, { merge: true });
-        tx.set(loserRef, { creditBalance: lOld - wager }, { merge: true });
+      tx.set(winnerRef, { creditBalance: wOld + wager }, { merge: true });
+      tx.set(loserRef,  { creditBalance: lOld - wager }, { merge: true });
 
-        const agg = postRef.collection("agreements");
-        tx.set(agg.doc(winnerUid), {});
-        tx.set(agg.doc(loserUid), {});
+      const agg = postRef.collection("agreements");
+      tx.set(agg.doc(winnerUid), {});
+      tx.set(agg.doc(loserUid), {});
 
-        tx.set(postRef, { betComplete: true, Winner: winnerName }, { merge: true });
-      })
-      .then(() => {
-        navigation.navigate("CConfirmedScreen", { creatorUid, postId });
-      })
-      .catch(console.error);
+      tx.set(postRef, { betComplete: true, Winner: winnerName }, { merge: true });
+    })
+    .then(() => navigation.navigate("CConfirmedScreen", { creatorUid, postId }))
+    .catch(console.error);
+
   }, [
     creatorChoice,
     riskerChoice,
@@ -174,8 +169,6 @@ const denyBet = async () => {
     riskerName,
   ]);
 
-
-
   return (
     <SafeAreaView style={styles.safe}>
       <Text style={styles.headerTitle}>Who Won The Agreement?</Text>
@@ -188,9 +181,13 @@ const denyBet = async () => {
         <Image style={styles.avatar} source={{ uri: riskerPPUrl }} />
       </View>
 
+      {/* Creator’s slider */}
       <View
         pointerEvents={amCreator && !betComplete ? "auto" : "none"}
-        style={[styles.sliderGroup, (!amCreator || betComplete) && styles.disabled]}
+        style={[
+          styles.sliderGroup,
+          (!amCreator || betComplete) && styles.disabled,
+        ]}
       >
         <Text style={styles.sliderLabel}>{creatorName}’s pick</Text>
         <Slider
@@ -210,9 +207,13 @@ const denyBet = async () => {
         </View>
       </View>
 
+      {/* Risker’s slider */}
       <View
         pointerEvents={amRisker && !betComplete ? "auto" : "none"}
-        style={[styles.sliderGroup, (!amRisker || betComplete) && styles.disabled]}
+        style={[
+          styles.sliderGroup,
+          (!amRisker || betComplete) && styles.disabled,
+        ]}
       >
         <Text style={styles.sliderLabel}>{riskerName}’s pick</Text>
         <Slider
@@ -242,8 +243,6 @@ const denyBet = async () => {
       >
         <Text style={styles.homeBtnText}>Back to Home</Text>
       </TouchableOpacity>
-
-
 
       <Image
         source={require("../assets/ohbet-icon.png")}

@@ -36,27 +36,25 @@ const chunk = (arr, size = 10) => {
 };
 
 export default function Feed({ navigation }) {
-  const dispatch    = useDispatch();
-  const currentUser = useSelector(s => s.userState.currentUser);
-  const following   = useSelector(s => s.userState.following    || []);
+  const dispatch = useDispatch();
+  const currentUser = useSelector((s) => s.userState.currentUser);
+  const following = useSelector((s) => s.userState.following || []);
 
-  const [posts, setPosts]          = useState([]);   // all loaded so far
-  const [visiblePosts, setVisible] = useState([]);   // for FlatList
-  const [loading, setLoading]      = useState(true);
+  const [posts, setPosts] = useState([]);
+  const [visiblePosts, setVisible] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [lastDoc, setLastDoc]      = useState(null);
+  const [lastDoc, setLastDoc] = useState(null);
 
-  const [isViewerVisible, setIsViewerVisible]   = useState(false);
+  const [isViewerVisible, setIsViewerVisible] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState(null);
-  const [countdownTimers, setCountdownTimers]   = useState({});
+  const [countdownTimers, setCountdownTimers] = useState({});
 
-  // 🚀 load user & following info on mount
   useEffect(() => {
     dispatch(fetchUser());
     dispatch(fetchUserFollowing());
   }, [dispatch]);
 
-  // fetch comment counts for an array of posts
   const fetchCommentCounts = async (postsArray) => {
     return Promise.all(
       postsArray.map(async (post) => {
@@ -77,91 +75,158 @@ export default function Feed({ navigation }) {
     );
   };
 
-  // ── REAL-TIME LISTENER ─────────────────────────────────────────────────────
-useEffect(() => {
-  if (!currentUser) return;
-  if (following === null) return;
+  const fetchLikeCounts = async (postsArray) => {
+    return Promise.all(
+      postsArray.map(async (post) => {
+        const likesRef = firebase
+          .firestore()
+          .collection("posts")
+          .doc(post.user.uid)
+          .collection("userPosts")
+          .doc(post.id)
+          .collection("likes");
 
-  const uids = [currentUser.uid, ...following];
+        const [likesSnap, likedByMeSnap] = await Promise.all([
+          likesRef.get(),
+          likesRef.doc(currentUser.uid).get(),
+        ]);
 
-  const unsub = firebase
-    .firestore()
-    .collectionGroup("userPosts")
-.onSnapshot(async snapshot => {
-  // 1) pull raw docs → add ownerUid + ensure creation exists
-  const raw = snapshot.docs
-    .map(d => {
-      const data     = d.data();
-      const ownerUid = d.ref.parent.parent.id;
-      return { id: d.id, ...data, ownerUid };
-    })
-    // 2) filter out any docs without a valid creation.seconds
-    .filter(post => post.creation && typeof post.creation.seconds === "number");
+        return {
+          ...post,
+          likesCount: likesSnap.size,
+          currentUserLike: likedByMeSnap.exists,
+        };
+      })
+    );
+  };
 
-  // 3) filter to only your feed
-  const filtered = raw.filter(p => uids.includes(p.ownerUid));
+  const onLikePress = async (ownerUid, postId) => {
+    try {
+      const ref = firebase
+        .firestore()
+        .collection("posts")
+        .doc(ownerUid)
+        .collection("userPosts")
+        .doc(postId)
+        .collection("likes")
+        .doc(currentUser.uid);
+      await ref.set({});
+      setVisible((v) =>
+        v.map((p) =>
+          p.id === postId
+            ? { ...p, likesCount: (p.likesCount || 0) + 1, currentUserLike: true }
+            : p
+        )
+      );
+    } catch (error) {
+      console.warn("Error liking post:", error);
+    }
+  };
 
-  // 4) dedupe & sort
-  const mapById = new Map();
-  filtered.forEach(p => mapById.set(p.id, p));
-  const deduped = Array.from(mapById.values())
-    .sort((a, b) => b.creation.seconds - a.creation.seconds);
+  const onDislikePress = async (ownerUid, postId) => {
+    try {
+      const ref = firebase
+        .firestore()
+        .collection("posts")
+        .doc(ownerUid)
+        .collection("userPosts")
+        .doc(postId)
+        .collection("likes")
+        .doc(currentUser.uid);
+      await ref.delete();
+      setVisible((v) =>
+        v.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                likesCount: Math.max((p.likesCount || 1) - 1, 0),
+                currentUserLike: false,
+              }
+            : p
+        )
+      );
+    } catch (error) {
+      console.warn("Error unliking post:", error);
+    }
+  };
 
-      // 4) load challenger & risker profiles in parallel
-      const enriched = await Promise.all(
-        deduped.map(async post => {
-          // challenger:
-          const uSnap = await firebase
-            .firestore()
-            .collection("users")
-            .doc(post.ownerUid)
-            .get();
-          const uData = uSnap.data() || {};
+  useEffect(() => {
+    if (!currentUser) return;
+    if (following === null) return;
 
-          // risker:
-          let rData = post.userRisker || {};
-          if (post.userRisker?.uid) {
-            const rSnap = await firebase
+    const uids = [currentUser.uid, ...following];
+
+    const unsub = firebase
+      .firestore()
+      .collectionGroup("userPosts")
+      .onSnapshot(async (snapshot) => {
+        const raw = snapshot.docs
+          .map((d) => {
+            const data = d.data();
+            const ownerUid = d.ref.parent.parent.id;
+            return { id: d.id, ...data, ownerUid };
+          })
+          .filter((post) => post.creation && typeof post.creation.seconds === "number");
+
+        const filtered = raw.filter((p) => uids.includes(p.ownerUid));
+
+        const mapById = new Map();
+        filtered.forEach((p) => mapById.set(p.id, p));
+        const deduped = Array.from(mapById.values()).sort(
+          (a, b) => b.creation.seconds - a.creation.seconds
+        );
+
+        const enriched = await Promise.all(
+          deduped.map(async (post) => {
+            const uSnap = await firebase
               .firestore()
               .collection("users")
-              .doc(post.userRisker.uid)
+              .doc(post.ownerUid)
               .get();
-            rData = rSnap.exists ? rSnap.data() : rData;
-          }
+            const uData = uSnap.data() || {};
 
-          return {
-            ...post,
-            user: {
-              uid:   post.ownerUid,
-              name:  uData.name  || "Unknown",
-              ppUrl: uData.ppUrl || null,
-            },
-            userRisker: {
-              uid:   rData.uid   || post.userRisker?.uid,
-              name:  rData.name  || post.userRisker?.name  || "Unknown",
-              ppUrl: rData.ppUrl || post.userRisker?.ppUrl || null,
+            let rData = post.userRisker || {};
+            if (post.userRisker?.uid) {
+              const rSnap = await firebase
+                .firestore()
+                .collection("users")
+                .doc(post.userRisker.uid)
+                .get();
+              rData = rSnap.exists ? rSnap.data() : rData;
             }
-          };
-        })
-      );
 
-      // 5) set posts + first page
-      setPosts(enriched);
-      const firstPage = enriched.slice(0, POSTS_PER_PAGE);
-      const withCounts = await fetchCommentCounts(firstPage);
-      setVisible(withCounts);
-      setLoading(false);
-    });
+            return {
+              ...post,
+              user: {
+                uid: post.ownerUid,
+                name: uData.name || "Unknown",
+                ppUrl: uData.ppUrl || null,
+              },
+              userRisker: {
+                uid: rData.uid || post.userRisker?.uid,
+                name: rData.name || post.userRisker?.name || "Unknown",
+                ppUrl: rData.ppUrl || post.userRisker?.ppUrl || null,
+              },
+            };
+          })
+        );
 
-  return () => unsub();
-}, [currentUser, following]);
+        setPosts(enriched);
+        const firstPage = enriched.slice(0, POSTS_PER_PAGE);
+        const withComments = await fetchCommentCounts(firstPage);
+        const withMeta = await fetchLikeCounts(withComments);
+        setVisible(withMeta);
+        setLoading(false);
+      });
 
-  // ── PAGINATION FOR “LOAD MORE” ─────────────────────────────────────────────
+    return () => unsub();
+  }, [currentUser, following]);
+
   const loadMore = useCallback(async () => {
     if (loadingMore || !lastDoc) return;
     setLoadingMore(true);
     try {
-      const uids    = [currentUser.uid, ...following];
+      const uids = [currentUser.uid, ...following];
       const batches = chunk(uids);
 
       const snaps = await Promise.all(
@@ -179,40 +244,41 @@ useEffect(() => {
 
       let docs = snaps.flatMap((snap) =>
         snap.docs.map((d) => ({
-          id:       d.id,
+          id: d.id,
           ...d.data(),
           creation: d.data().creation,
           user: {
-            uid:   d.data().uid,
-            name:  d.data().name,
+            uid: d.data().uid,
+            name: d.data().name,
             ppUrl: d.data().ppUrl,
           },
         }))
       );
 
-      // filter out already‐loaded, sort newest first
-      const existing = new Set(posts.map(p => p.id));
+      const existing = new Set(posts.map((p) => p.id));
       docs = docs
-        .filter(p => !existing.has(p.id))
+        .filter((p) => !existing.has(p.id))
         .sort((a, b) => b.creation.seconds - a.creation.seconds);
 
-      setPosts(prev => [...prev, ...docs]);
-      setVisible(prev => [...prev, ...docs]);
-      if (docs.length) setLastDoc(docs[docs.length - 1]);
+      const withComments = await fetchCommentCounts(docs);
+      const withMeta = await fetchLikeCounts(withComments);
+
+      setPosts((prev) => [...prev, ...withMeta]);
+      setVisible((prev) => [...prev, ...withMeta]);
+      if (withMeta.length) setLastDoc(withMeta[withMeta.length - 1]);
     } finally {
       setLoadingMore(false);
     }
   }, [currentUser, following, lastDoc, loadingMore, posts]);
 
-  // ── COUNTDOWN TIMER UPDATES ────────────────────────────────────────────────
   useEffect(() => {
     const iv = setInterval(() => {
       const newTimers = {};
-      visiblePosts.forEach(item => {
-        const days    = item.durationDays ?? 7;
+      visiblePosts.forEach((item) => {
+        const days = item.durationDays ?? 7;
         const startMs = item.creation.seconds * 1000;
-        const endMs   = startMs + days * 24*60*60*1000;
-        const diff    = endMs - Date.now();
+        const endMs = startMs + days * 24 * 60 * 60 * 1000;
+        const diff = endMs - Date.now();
 
         if (diff > 0) {
           const d = Math.floor(diff / 86400000);
@@ -236,22 +302,6 @@ useEffect(() => {
     return () => clearInterval(iv);
   }, [visiblePosts]);
 
-
-  useEffect(() => {
-  if (!currentUser) return;
-
-  console.log("🚧 Running unfiltered test listener…");
-  const unsub = firebase
-    .firestore()
-    .collectionGroup("userPosts")
-    .limit(5)
-    .onSnapshot(snap => {
-      console.log("🚧 UNFILTERED snapshot.size:", snap.size);
-      snap.docs.forEach(d => console.log("🚧 post:", d.id, d.data()));
-    });
-
-  return () => unsub();
-}, [currentUser]);
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, justifyContent: "center" }}>
@@ -278,71 +328,37 @@ useEffect(() => {
         }
         ListHeaderComponent={() => (
           <>
-            {/* trending carousel placeholder */}
-            <View style={styles.trendingWrapper}>
-              {/* TODO: implement your trending carousel here */}
-            </View>
-
-            {/* create-risk prompt */}
-            <View style={styles.postStatusContainer}>
-              <View style={styles.postStatusWrapper}>
-                <View style={styles.postStatusHeader}>
-                  <Image
-                    style={styles.postStatusHeaderImage}
-                    source={{ uri: currentUser?.ppUrl }}
-                  />
-                  <Text style={styles.postStatusHeaderTitle}>
-                    Want to create a risk, {currentUser?.name}?
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.postStatusBtn}
-                  onPress={() => navigation.navigate("Chat")}
-                >
-                  <Text style={styles.postStatusBtnTitle}>
-                    Create Risk Now
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <View style = {{marginBottom:50}}></View>
           </>
         )}
         renderItem={({ item }) => {
-            const isExpired = item.betExpired;
-
-          const currentPhase = item.betComplete
-            ? 4
-            : item.handsShaken
-            ? 2
-            : 1;
-          const isOwner = item.user.uid === currentUser.uid;
-const countdown = countdownTimers[item.id];
+          const isExpired = item.betExpired;
+          const currentPhase = item.betComplete ? 4 : item.handsShaken ? 2 : 1;
+          const countdown = countdownTimers[item.id];
           return (
             <TouchableOpacity
-  disabled={item.deniedBet || item.betExpired || item.Winner}
-
+              disabled={item.deniedBet || item.betExpired || item.Winner}
               onPress={() => {
                 const isOwner = item.user.uid === currentUser.uid;
                 const params = {
-                  postId:       item.id,
-                  wager:        item.wager,
-                  creatorUid:   item.user.uid,
+                 postId: item.id,
+                  wager: item.wager,
+                  creatorUid: item.user.uid,
                   creatorPPUrl: item.user.ppUrl,
-                  riskerUid:    item.userRisker?.uid,
-                  riskerPPUrl:  item.userRisker?.ppUrl,
+                  riskerUid: item.userRisker?.uid,
+                  riskerPPUrl: item.userRisker?.ppUrl,
                 };
-                console.log("→ Feed.navigate params:", params);
-        
-                if (isOwner) {
+                if (isOwner || item.handsShaken) {
                   navigation.navigate("PartyScreen", params);
-                } else {
+                } 
+             
+                else {
                   navigation.navigate("PrePartyScreen", params);
                 }
               }}
             >
               <View style={styles.postContainer}>
                 <View style={styles.postWrapper}>
-                  {/* Header */}
                   <View style={styles.postHeaderWrapper}>
                     <TouchableOpacity
                       activeOpacity={1}
@@ -376,7 +392,6 @@ const countdown = countdownTimers[item.id];
                     </TouchableOpacity>
                   </View>
 
-                  {/* Caption / Image */}
                   {item.caption?.length > 0 && (
                     <Text style={styles.postCaption}>{item.caption}</Text>
                   )}
@@ -395,29 +410,32 @@ const countdown = countdownTimers[item.id];
                       />
                     </TouchableOpacity>
                   )}
-{item.deniedBet ? (
-  <View style={styles.deniedBadge}>
-    <Text style={styles.deniedBadgeText}>Bet Denied</Text>
-  </View>
-) : isExpired ? (
-  <View style={styles.expiredBadge}>
-    <Text style={styles.expiredBadgeText}>Bet Expired</Text>
-  </View>
-) : item.Winner ? (
-  <View style={styles.winnerBadge}>
-    <Text style={styles.winnerBadgeText}>Winner: {item.Winner}</Text>
-  </View>
-) : null}
 
-          {/* Timer (only if not expired) */}
-{!item.betComplete &&
- !item.deniedBet &&
- !item.betExpired &&
- countdown && (
-  <View style={styles.timerWrapper}>
-    <Text style={styles.timerText}>⏳ {countdown}</Text>
-  </View>
-)}
+                  {item.deniedBet ? (
+                    <View style={styles.deniedBadge}>
+                      <Text style={styles.deniedBadgeText}>Bet Denied</Text>
+                    </View>
+                  ) : isExpired ? (
+                    <View style={styles.expiredBadge}>
+                      <Text style={styles.expiredBadgeText}>Bet Expired</Text>
+                    </View>
+                  ) : item.Winner ? (
+                    <View style={styles.winnerBadge}>
+                      <Text style={styles.winnerBadgeText}>
+                        Winner: {item.Winner}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {!item.betComplete &&
+                    !item.deniedBet &&
+                    !item.betExpired &&
+                    countdown && (
+                      <View style={styles.timerWrapper}>
+                        <Text style={styles.timerText}>⏳ {countdown}</Text>
+                      </View>
+                    )}
+
                   <View style={{ flexDirection: "row", marginTop: 12 }}>
                     <Ionicons name="cash-outline" color="green" size={20} />
                     <Text style={styles.paidWagerCaption}>
@@ -425,12 +443,10 @@ const countdown = countdownTimers[item.id];
                     </Text>
                   </View>
 
-                  {/* Secondary Image */}
                   {item.url?.length > 0 && (
                     <Image style={styles.image} source={{ uri: item.url }} />
                   )}
 
-                  {/* 4-Step Progress Indicator */}
                   <View style={{ marginTop: 12, paddingHorizontal: 0 }}>
                     <StepIndicator
                       customStyles={stepIndicatorStyles}
@@ -440,7 +456,6 @@ const countdown = countdownTimers[item.id];
                     />
                   </View>
 
-                  {/* Reactions & Comments */}
                   <View
                     style={{
                       flexDirection: "row",
@@ -451,8 +466,8 @@ const countdown = countdownTimers[item.id];
                     <TouchableOpacity
                       onPress={() =>
                         item.currentUserLike
-                          ? onDislikePress(item.user.uid, item.id, "likes")
-                          : onLikePress(item.user.uid, item.id, "likes")
+                          ? onDislikePress(item.user.uid, item.id)
+                          : onLikePress(item.user.uid, item.id)
                       }
                     >
                       <Ionicons
@@ -491,17 +506,17 @@ const countdown = countdownTimers[item.id];
                         {item.commentsCount ?? 0}
                       </Text>
                     </TouchableOpacity>
-
-                    {selectedImageUri && (
-                      <ImageViewing
-                        images={[{ uri: selectedImageUri }]}
-                        imageIndex={0}
-                        visible={isViewerVisible}
-                        onRequestClose={() => setIsViewerVisible(false)}
-                        backgroundColor="black"
-                      />
-                    )}
                   </View>
+
+                  {selectedImageUri && (
+                    <ImageViewing
+                      images={[{ uri: selectedImageUri }]}
+                      imageIndex={0}
+                      visible={isViewerVisible}
+                      onRequestClose={() => setIsViewerVisible(false)}
+                      backgroundColor="black"
+                    />
+                  )}
                 </View>
               </View>
             </TouchableOpacity>
